@@ -1,0 +1,21 @@
+{
+  "name": "xiaoyao-talent-network",
+  "version": "1.0.0",
+  "description": "逍遥人才网 - 综合性人才服务平台",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+  },
+  "keywords": ["talent", "recruitment", "startup", "job", "platform"],
+  "author": "逍遥人才网开发团队",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

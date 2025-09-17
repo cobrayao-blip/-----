@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全局样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Ant Design 自定义样式 */
+.ant-layout {
+  min-height: 100vh;
+}
+
+.ant-layout-header {
+  padding: 0 24px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.ant-layout-content {
+  padding: 24px;
+  background: #f5f5f5;
+}
+
+.ant-layout-footer {
+  text-align: center;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 自定义组件样式 */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.card-hover {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.hero-section {
+  background: linear-gradient(135deg, #1890ff 0%, #722ed1 100%);
+  color: white;
+  padding: 80px 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ant-layout-header {
+    padding: 0 16px;
+  }
+  
+  .ant-layout-content {
+    padding: 16px;
+  }
+  
+  .page-container {
+    padding: 0 8px;
+  }
+  
+  .hero-section {
+    padding: 40px 0;
+  }
+}
+
+/* 加载动画 */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+/* 政策内容样式 */
+.policy-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+.policy-content p {
+  margin-bottom: 12px;
+  text-indent: 2em; /* 首行缩进 */
+}
+
+.policy-content h1,
+.policy-content h2,
+.policy-content h3,
+.policy-content h4,
+.policy-content h5,
+.policy-content h6 {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  color: #262626;
+}
+
+.policy-content h1 { font-size: 18px; }
+.policy-content h2 { font-size: 16px; }
+.policy-content h3 { font-size: 15px; }
+
+.policy-content ul,
+.policy-content ol {
+  margin: 8px 0 12px 2em;
+  padding-left: 1em;
+}
+
+.policy-content li {
+  margin-bottom: 4px;
+  line-height: 1.6;
+}
+
+.policy-content blockquote {
+  margin: 12px 0;
+  padding: 8px 16px;
+  background: #f6f8fa;
+  border-left: 4px solid #1890ff;
+  font-style: italic;
+}
+
+.policy-content strong {
+  font-weight: 600;
+  color: #262626;
+}
+
+.policy-content em {
+  font-style: italic;
+  color: #595959;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

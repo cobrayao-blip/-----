@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>登录调试工具</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .result { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 登录调试工具</h1>
+        
+        <div>
+            <h3>管理员登录测试</h3>
+            <input type="email" id="email" value="admin@xiaoyao.com" placeholder="邮箱">
+            <input type="password" id="password" value="admin123456" placeholder="密码">
+            <br>
+            <button onclick="testLogin()">测试登录</button>
+            <button onclick="testCORS()">测试CORS</button>
+            <button onclick="clearResults()">清除结果</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+        }
+
+        async function testCORS() {
+            addResult('🔍 测试CORS配置...');
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                addResult(`✅ CORS预检请求成功: ${response.status}`, 'success');
+            } catch (error) {
+                addResult(`❌ CORS预检请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            addResult(`🔍 尝试登录: ${email}`);
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                addResult(`📡 响应状态: ${response.status} ${response.statusText}`);
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✅ 登录成功!`, 'success');
+                    addResult(`👤 用户信息: ${JSON.stringify(data.data.user, null, 2)}`);
+                    addResult(`🔑 Token: ${data.data.token.substring(0, 50)}...`);
+                    
+                    // 测试token验证
+                    testTokenValidation(data.data.token);
+                } else {
+                    addResult(`❌ 登录失败: ${data.message || '未知错误'}`, 'error');
+                    addResult(`📄 完整响应: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (error) {
+                addResult(`❌ 网络错误: ${error.message}`, 'error');
+                console.error('登录错误:', error);
+            }
+        }
+
+        async function testTokenValidation(token) {
+            addResult('🔍 测试Token验证...');
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('✅ Token验证成功', 'success');
+                    addResult(`👤 当前用户: ${JSON.stringify(data.data, null, 2)}`);
+                } else {
+                    addResult(`❌ Token验证失败: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Token验证错误: ${error.message}`, 'error');
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // 页面加载时自动测试CORS
+        window.onload = function() {
+            addResult('🚀 登录调试工具已加载');
+            testCORS();
+        };
+    </script>
+</body>
+</html>
