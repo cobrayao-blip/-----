@@ -12,6 +12,28 @@ const TestLogin: React.FC = () => {
   const { user, isAuthenticated } = useAppSelector((state) => state.auth)
   const [testResult, setTestResult] = useState<any>(null)
 
+  // 角色翻译函数
+  const getRoleLabel = (role: string) => {
+    const roleMap: Record<string, string> = {
+      'SUPER_ADMIN': '超级管理员',
+      'ADMIN': '管理员',
+      'VIP': 'VIP用户',
+      'USER': '普通用户'
+    }
+    return roleMap[role] || role
+  }
+
+  // 状态翻译函数
+  const getStatusLabel = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'ACTIVE': '活跃',
+      'INACTIVE': '非活跃',
+      'SUSPENDED': '已暂停',
+      'BANNED': '已封禁'
+    }
+    return statusMap[status] || status
+  }
+
   const testAdminLogin = async () => {
     try {
       console.log('🔍 开始测试管理员登录...')
@@ -115,11 +137,11 @@ const TestLogin: React.FC = () => {
               </Descriptions.Item>
               <Descriptions.Item label="角色">
                 <Text strong color={user.role === 'ADMIN' ? 'red' : 'blue'}>
-                  {user.role}
+                  {getRoleLabel(user.role)}
                 </Text>
               </Descriptions.Item>
               <Descriptions.Item label="状态">
-                {user.status}
+                {getStatusLabel(user.status)}
               </Descriptions.Item>
             </Descriptions>
           ) : (

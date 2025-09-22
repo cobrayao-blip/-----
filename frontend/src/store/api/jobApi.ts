@@ -54,6 +54,22 @@ export interface ApplyJobRequest {
   coverLetter?: string
   expectedSalary?: string
   availableDate?: string
+  includeResume?: boolean
+  resumeData?: {
+    basicInfo?: any
+    title?: string
+    objective?: string
+    summary?: string
+    awards?: string
+    hobbies?: string
+    education?: any[]
+    experience?: any[]
+    projects?: any[]
+    skills?: any[]
+    certificates?: any[]
+    languages?: any[]
+    attachments?: any[]
+  }
   additionalDocs?: any[]
 }
 
@@ -80,6 +96,17 @@ export const jobApi = authApi.injectEndpoints({
         url: '/jobs/apply',
         method: 'POST',
         body: data,
+      }),
+      invalidatesTags: ['Application', 'Job'],
+    }),
+
+    // 申请工作（带文件上传）
+    applyJobWithFiles: builder.mutation<ApiResponse<JobApplication>, FormData>({
+      query: (formData) => ({
+        url: '/jobs/apply',
+        method: 'POST',
+        body: formData,
+        formData: true,
       }),
       invalidatesTags: ['Application', 'Job'],
     }),
@@ -136,6 +163,7 @@ export const {
   useGetJobsQuery,
   useGetJobByIdQuery,
   useApplyJobMutation,
+  useApplyJobWithFilesMutation,
   useGetUserJobApplicationsQuery,
   useWithdrawJobApplicationMutation,
   useGetPopularJobsQuery,

@@ -187,7 +187,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="总用户数"
-              value={stats.totalUsers}
+              value={stats?.totalUsers || 0}
               prefix={<UserOutlined />}
               valueStyle={{ color: '#3f8600' }}
             />
@@ -197,7 +197,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="项目总数"
-              value={stats.totalProjects}
+              value={stats?.totalProjects || 0}
               prefix={<ProjectOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -207,7 +207,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="政策总数"
-              value={stats.totalPolicies}
+              value={stats?.totalPolicies || 0}
               prefix={<FileTextOutlined />}
               valueStyle={{ color: '#722ed1' }}
             />
@@ -217,7 +217,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="园区总数"
-              value={stats.totalParks}
+              value={stats?.totalParks || 0}
               prefix={<BankOutlined />}
               valueStyle={{ color: '#eb2f96' }}
             />
@@ -231,7 +231,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="待审核申报"
-              value={stats.pendingApplications}
+              value={stats?.pendingApplications || 0}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#fa8c16' }}
             />
@@ -241,7 +241,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="已通过申报"
-              value={stats.approvedApplications}
+              value={stats?.approvedApplications || 0}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -251,7 +251,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="总浏览量"
-              value={stats.totalViews}
+              value={stats?.totalViews || 0}
               prefix={<EyeOutlined />}
               valueStyle={{ color: '#13c2c2' }}
             />
@@ -261,7 +261,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="活跃用户"
-              value={stats.activeUsers}
+              value={stats?.activeUsers || 0}
               prefix={<TeamOutlined />}
               valueStyle={{ color: '#f5222d' }}
             />

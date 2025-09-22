@@ -4,7 +4,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 export const api = createApi({
   reducerPath: 'mainApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:5000/api',
+    baseUrl: '/api',
     prepareHeaders: (headers) => {
       // 从localStorage获取token
       const token = localStorage.getItem('token')
@@ -18,7 +18,7 @@ export const api = createApi({
   endpoints: (builder) => ({
     // 认证相关
     login: builder.mutation<
-      { success: boolean; data: { user: any; token: string } },
+      { success: boolean; data: { user: any; token: string; mustChangePassword?: boolean } },
       { email: string; password: string }
     >({
       query: (credentials) => ({

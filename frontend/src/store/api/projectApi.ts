@@ -47,9 +47,14 @@ export interface ProjectFilters extends PaginationParams {
 
 export interface ApplyProjectRequest {
   projectId: string
-  businessPlanUrl?: string
-  additionalDocs?: any[]
-  message?: string
+  personalInfo?: any
+  projectInfo?: any
+  documents?: {
+    resume?: any[]
+    businessPlan?: any[]
+    financialReport?: any[]
+    otherDocs?: any[]
+  }
 }
 
 export const projectApi = authApi.injectEndpoints({
@@ -72,7 +77,7 @@ export const projectApi = authApi.injectEndpoints({
     // 申请项目
     applyProject: builder.mutation<ApiResponse<ProjectApplication>, ApplyProjectRequest>({
       query: (data) => ({
-        url: '/projects/apply',
+        url: `/projects/${data.projectId}/apply`,
         method: 'POST',
         body: data,
       }),

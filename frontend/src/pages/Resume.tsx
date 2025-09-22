@@ -331,6 +331,10 @@ const Resume: React.FC = () => {
     try {
       const values = await itemForm.validateFields()
       
+      console.log('表单验证通过，准备保存:', values)
+      console.log('当前modalType:', modalType)
+      console.log('当前editingItem:', editingItem)
+      
       // 处理日期格式
       const processedValues = { ...values }
       if (processedValues.startDate) {
@@ -348,31 +352,78 @@ const Resume: React.FC = () => {
         id: editingItem?.id || Date.now().toString()
       }
 
-      const updatedData = { ...resumeData }
+      console.log('处理后的新项目数据:', newItem)
+
+      // 创建resumeData的深拷贝，确保所有数组都是可扩展的
+      const updatedData = {
+        ...resumeData,
+        // 确保所有数组字段都是可变的副本
+        education: [...(resumeData.education || [])],
+        experience: [...(resumeData.experience || [])],
+        projects: [...(resumeData.projects || [])],
+        skills: [...(resumeData.skills || [])],
+        certificates: [...(resumeData.certificates || [])],
+        languages: [...(resumeData.languages || [])],
+        attachments: [...(resumeData.attachments || [])]
+      }
+      
       const dataKey = getDataKey(modalType)
+      
+      console.log('数据键名:', dataKey)
+      console.log('更新前的数据:', updatedData[dataKey as keyof typeof updatedData])
+      
+      // 获取对应的数组
+      const items = updatedData[dataKey as keyof typeof updatedData] as any[]
       
       if (editingItem) {
         // 编辑现有项目
-        const items = updatedData[dataKey as keyof typeof updatedData] as any[]
         const index = items.findIndex((item: any) => item.id === editingItem.id)
         if (index !== -1) {
           items[index] = newItem
         }
       } else {
-        // 添加新项目
-        const items = updatedData[dataKey as keyof typeof updatedData] as any[]
+        // 添加新项目 - 现在数组是可扩展的
         items.push(newItem)
       }
 
+      console.log('更新后的数据:', updatedData[dataKey as keyof typeof updatedData])
+      console.log('准备发送到后端的完整数据:', updatedData)
+
       // 保存到后端
-      await updateResume(updatedData).unwrap()
+      const result = await updateResume(updatedData).unwrap()
+      console.log('后端返回结果:', result)
+      
       setResumeData(updatedData)
       setIsModalVisible(false)
       itemForm.resetFields()
       message.success(editingItem ? '更新成功' : '添加成功')
     } catch (error: any) {
-      console.error('保存失败:', error)
-      message.error(error?.data?.message || '操作失败，请重试')
+      console.error('保存失败详细信息:', error)
+      console.error('错误类型:', typeof error)
+      console.error('错误对象键:', Object.keys(error))
+      
+      if (error.status) {
+        console.error('HTTP状态码:', error.status)
+      }
+      if (error.data) {
+        console.error('错误数据:', error.data)
+      }
+      
+      let errorMessage = '操作失败，请重试'
+      
+      if (error?.data?.message) {
+        errorMessage = error.data.message
+      } else if (error?.message) {
+        errorMessage = error.message
+      } else if (error.status === 401) {
+        errorMessage = '认证失败，请重新登录'
+      } else if (error.status === 403) {
+        errorMessage = '权限不足'
+      } else if (error.status === 500) {
+        errorMessage = '服务器内部错误'
+      }
+      
+      message.error(errorMessage)
     }
   }
 

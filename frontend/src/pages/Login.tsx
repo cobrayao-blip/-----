@@ -28,6 +28,7 @@ const Login: React.FC = () => {
       const result = await login(values).unwrap()
       
       if (result.data?.user && result.data?.token) {
+        // 先清除所有状态
         dispatch(setCredentials({
           user: result.data.user,
           token: result.data.token
@@ -35,22 +36,23 @@ const Login: React.FC = () => {
         
         message.success('登录成功！')
         
-        // 检查是否使用初始密码
-        const { password } = values
-        const isInitialPassword = password === 'admin123' || password === '123456' || password === 'password'
-        
-        if (isInitialPassword) {
-          message.warning('检测到您正在使用初始密码，为了账户安全，请先修改密码')
-          navigate('/change-password')
+        // 检查是否需要强制修改密码
+        if (result.data.mustChangePassword) {
+          message.warning('首次登录需要修改密码')
+          setTimeout(() => {
+            navigate('/change-password')
+          }, 1000)
           return
         }
         
-        // 根据用户角色跳转到不同页面
-        if (result.data.user.role === 'ADMIN' || result.data.user.role === 'SUPER_ADMIN') {
-          navigate('/admin/dashboard')
-        } else {
-          navigate('/')
-        }
+        // 根据用户角色跳转到不同页面，使用强制刷新确保状态完全更新
+        setTimeout(() => {
+          if (result.data.user.role === 'ADMIN' || result.data.user.role === 'SUPER_ADMIN') {
+            window.location.href = '/admin/dashboard'
+          } else {
+            window.location.href = '/'
+          }
+        }, 1000)
       }
     } catch (error: any) {
       message.error(error?.data?.message || '登录失败，请检查邮箱和密码')

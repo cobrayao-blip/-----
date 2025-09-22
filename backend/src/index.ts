@@ -15,6 +15,8 @@ import projectRoutes from './routes/projects';
 import jobRoutes from './routes/jobs';
 import adminRoutes from './routes/admin';
 import resumeRoutes from './routes/resume';
+import contentRoutes from './routes/content';
+import testimonialRoutes from './routes/testimonialRoutes';
 
 // 导入中间件
 import { errorHandler } from './middleware/errorHandler';
@@ -35,11 +37,21 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://your-domain.com'] 
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    : ['http://localhost:3000'],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 设置默认字符编码为UTF-8
+app.use((req, res, next) => {
+  req.setEncoding = req.setEncoding || (() => {});
+  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+    // 对于multipart请求，确保正确处理UTF-8编码
+    console.log('处理multipart请求，设置UTF-8编码');
+  }
+  next();
+});
 
 // 静态文件服务
 app.use('/uploads', express.static('uploads'));
@@ -53,6 +65,8 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/resume', resumeRoutes);
+app.use('/api/content', contentRoutes);
+app.use('/api/testimonials', testimonialRoutes);
 
 // 健康检查
 app.get('/health', (req, res) => {

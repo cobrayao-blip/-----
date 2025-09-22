@@ -85,8 +85,11 @@ class ProjectController {
 
   // 申请项目
   applyProject = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { projectId, businessPlanUrl, additionalDocs, message } = req.body;
+    const projectId = req.params.id;
+    const { personalInfo, projectInfo, documents } = req.body;
     const userId = req.user!.id;
+
+    console.log('收到项目申请数据:', req.body);
 
     // 检查项目是否存在
     const project = await prisma.startupProject.findUnique({
@@ -111,14 +114,45 @@ class ProjectController {
       throw createError('您已申请过此项目', 400);
     }
 
+    // 处理文件URL
+    const getFileUrls = (fileList: any[]) => {
+      if (!fileList || !Array.isArray(fileList)) return null;
+      return fileList.map(file => {
+        console.log('处理文件:', file);
+        let fileUrl = '';
+        let fileName = '';
+        
+        // 如果是上传成功的文件，从response中获取URL
+        if (file.response && file.response.success && file.response.data) {
+          const uploadedFile = Array.isArray(file.response.data) ? file.response.data[0] : file.response.data;
+          fileUrl = uploadedFile.url;
+          fileName = uploadedFile.originalName || file.name;
+        } else if (file.url) {
+          // 如果直接有URL
+          fileUrl = file.url;
+          fileName = file.name || file.originalName;
+        }
+        
+        return {
+          name: fileName,
+          url: fileUrl,
+          size: file.size
+        };
+      }).filter(file => file.url); // 过滤掉没有URL的文件
+    };
+
     // 创建申请
     const application = await prisma.projectApplication.create({
       data: {
         userId,
         projectId,
-        businessPlanUrl,
-        additionalDocs,
-        message
+        personalInfo: personalInfo ? JSON.stringify(personalInfo) : null,
+        projectInfo: projectInfo ? JSON.stringify(projectInfo) : null,
+        resumeUrl: documents?.resume ? JSON.stringify(getFileUrls(documents.resume)) : null,
+        businessPlanUrl: documents?.businessPlan ? JSON.stringify(getFileUrls(documents.businessPlan)) : null,
+        financialReportUrl: documents?.financialReport ? JSON.stringify(getFileUrls(documents.financialReport)) : null,
+        otherDocsUrl: documents?.otherDocs ? JSON.stringify(getFileUrls(documents.otherDocs)) : null,
+        message: projectInfo?.projectDescription || ''
       },
       include: {
         project: {
@@ -127,9 +161,18 @@ class ProjectController {
             title: true,
             category: true
           }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
       }
     });
+
+    console.log('创建申请成功:', application);
 
     // 更新项目申请人数
     // 项目申请数量更新逻辑可以在这里实现

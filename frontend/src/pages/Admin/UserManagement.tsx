@@ -414,7 +414,7 @@ const UserManagement: React.FC = () => {
 
         {modalType === 'create' && (
           <div className="bg-blue-50 p-3 rounded mb-4">
-            <Text type="secondary" className="text-sm">
+            <div className="text-sm text-gray-600">
               💡 提示：
               <br />
               • 管理员账户创建后，用户需要使用初始密码首次登录
@@ -422,7 +422,7 @@ const UserManagement: React.FC = () => {
               • 首次登录后系统会要求用户修改密码
               <br />
               • 建议设置简单易记的初始密码，如：123456
-            </Text>
+            </div>
           </div>
         )}
       </Form>

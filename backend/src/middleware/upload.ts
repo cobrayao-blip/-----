@@ -2,15 +2,82 @@ import multer from 'multer';
 import path from 'path';
 import { createError } from './errorHandler';
 
+// 修复文件名编码的函数
+const fixFileNameEncoding = (originalName: string): string => {
+  try {
+    console.log('原始文件名:', originalName);
+    
+    // 如果文件名包含正常中文，直接返回
+    if (/[\u4e00-\u9fff]/.test(originalName)) {
+      console.log('文件名包含正常中文，无需修复');
+      return originalName;
+    }
+    
+    // 尝试修复编码问题
+    // 方法1: 处理 Latin-1 到 UTF-8 的转换
+    try {
+      const buffer = Buffer.from(originalName, 'latin1');
+      const fixed = buffer.toString('utf8');
+      if (/[\u4e00-\u9fff]/.test(fixed)) {
+        console.log('Latin-1转UTF-8修复成功:', fixed);
+        return fixed;
+      }
+    } catch (e) {
+      console.log('Latin-1转UTF-8失败');
+    }
+    
+    // 方法2: URL解码
+    try {
+      const decoded = decodeURIComponent(escape(originalName));
+      if (/[\u4e00-\u9fff]/.test(decoded)) {
+        console.log('URL解码修复成功:', decoded);
+        return decoded;
+      }
+    } catch (e) {
+      console.log('URL解码失败');
+    }
+    
+    // 方法3: 字节重新解释
+    try {
+      const bytes = [];
+      for (let i = 0; i < originalName.length; i++) {
+        bytes.push(originalName.charCodeAt(i) & 0xFF);
+      }
+      const buffer = Buffer.from(bytes);
+      const fixed = buffer.toString('utf8');
+      if (/[\u4e00-\u9fff]/.test(fixed)) {
+        console.log('字节重新解释修复成功:', fixed);
+        return fixed;
+      }
+    } catch (e) {
+      console.log('字节重新解释失败');
+    }
+    
+    console.log('所有修复方法都失败，返回原始文件名');
+    return originalName;
+  } catch (e) {
+    console.error('文件名编码修复出错:', e);
+    return originalName;
+  }
+};
+
 // 配置存储
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
-    // 生成唯一文件名
+    // 修复文件名编码
+    const fixedOriginalName = fixFileNameEncoding(file.originalname);
+    console.log(`文件名修复: ${file.originalname} -> ${fixedOriginalName}`);
+    
+    // 生成唯一文件名，保持原始扩展名
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    const ext = path.extname(fixedOriginalName);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    
+    // 将修复后的文件名存储到file对象中，供后续使用
+    file.originalname = fixedOriginalName;
   }
 });
 

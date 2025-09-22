@@ -84,8 +84,20 @@ class JobController {
 
   // 申请工作
   applyJob = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { jobId, coverLetter, expectedSalary, availableDate, additionalDocs, includeResume } = req.body;
+    const { jobId, coverLetter, expectedSalary, availableDate, additionalDocs, includeResume, resumeData } = req.body;
     const userId = req.user!.id;
+
+    // 处理FormData中的布尔值（FormData中所有值都是字符串）
+    const includeResumeBoolean = includeResume === 'true' || includeResume === true;
+    
+    console.log('申请职位参数:', {
+      jobId,
+      userId,
+      includeResume: includeResume,
+      includeResumeBoolean,
+      hasResumeData: !!resumeData,
+      resumeDataLength: resumeData?.length || 0
+    });
 
     // 检查工作是否存在
     const job = await prisma.jobOpportunity.findUnique({
@@ -110,16 +122,51 @@ class JobController {
       throw createError('您已申请过此职位', 400);
     }
 
-    // 如果选择包含简历，获取用户简历信息
+    // 处理简历数据
     let resumeUrl = null;
-    if (includeResume) {
-      const resume = await prisma.resume.findUnique({
-        where: { userId }
-      });
-      
-      if (resume && resume.isComplete) {
-        // 生成简历URL或直接使用简历ID
-        resumeUrl = `/api/resume/preview/${userId}`;
+    let resumeDataString = null;
+    
+    if (includeResumeBoolean) {
+      if (resumeData) {
+        // 如果前端传递了完整的简历数据，直接使用
+        resumeDataString = JSON.stringify(resumeData);
+      } else {
+        // 否则从数据库获取用户简历信息
+        const resume = await prisma.resume.findUnique({
+          where: { userId }
+        });
+        
+        if (resume && resume.isComplete) {
+          // 解析JSON字符串字段
+          const basicInfo = resume.basicInfo ? JSON.parse(resume.basicInfo) : {};
+          const education = resume.education ? JSON.parse(resume.education) : [];
+          const experience = resume.experience ? JSON.parse(resume.experience) : [];
+          const projects = resume.projects ? JSON.parse(resume.projects) : [];
+          const skills = resume.skills ? JSON.parse(resume.skills) : [];
+          const certificates = resume.certificates ? JSON.parse(resume.certificates) : [];
+          const languages = resume.languages ? JSON.parse(resume.languages) : [];
+          const attachments = resume.attachments ? JSON.parse(resume.attachments) : [];
+          
+          // 构建完整的简历数据
+          const fullResumeData = {
+            basicInfo: basicInfo,
+            title: resume.title,
+            objective: basicInfo.jobObjective || '',
+            summary: basicInfo.personalSummary || '',
+            awards: basicInfo.awards || '',
+            hobbies: basicInfo.hobbies || '',
+            education: education,
+            experience: experience,
+            projects: projects,
+            skills: skills,
+            certificates: certificates,
+            languages: languages,
+            attachments: attachments
+          };
+          
+          resumeDataString = JSON.stringify(fullResumeData);
+          resumeUrl = `/api/resume/preview/${userId}`;
+        }
       }
     }
 
@@ -130,6 +177,7 @@ class JobController {
         jobId,
         coverLetter,
         resumeUrl,
+        resumeData: resumeDataString,
         expectedSalary,
         availableDate: availableDate ? new Date(availableDate) : null,
         additionalDocs: additionalDocs ? JSON.stringify(additionalDocs) : null
@@ -164,7 +212,20 @@ class JobController {
   getUserApplications = asyncHandler(async (req: AuthRequest, res: Response) => {
     const applications = await prisma.jobApplication.findMany({
       where: { userId: req.user!.id },
-      include: {
+      select: {
+        id: true,
+        jobId: true,
+        coverLetter: true,
+        resumeUrl: true,
+        resumeData: true,
+        expectedSalary: true,
+        availableDate: true,
+        additionalDocs: true,
+        status: true,
+        reviewNote: true,
+        reviewedAt: true,
+        createdAt: true,
+        updatedAt: true,
         job: {
           select: {
             id: true,
@@ -176,6 +237,17 @@ class JobController {
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    console.log('获取用户申请记录:', applications.length, '条');
+    if (applications.length > 0) {
+      console.log('第一条申请记录:', {
+        id: applications[0].id,
+        hasResumeData: !!applications[0].resumeData,
+        hasAdditionalDocs: !!applications[0].additionalDocs,
+        resumeDataLength: applications[0].resumeData?.length || 0,
+        additionalDocsLength: applications[0].additionalDocs?.length || 0
+      });
+    }
 
     res.json({
       success: true,

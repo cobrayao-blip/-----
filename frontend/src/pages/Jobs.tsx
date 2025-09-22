@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   Card, 
   Typography, 
@@ -34,6 +35,8 @@ import {
   UploadOutlined
 } from '@ant-design/icons'
 import { useGetJobsQuery } from '../services/api'
+import { useApplyJobWithFilesMutation } from '../store/api/jobApi'
+import { useGetResumeQuery } from '../services/resumeApi'
 
 const { Title, Text, Paragraph } = Typography
 const { Search } = Input
@@ -41,6 +44,7 @@ const { Option } = Select
 const { TextArea } = Input
 
 const Jobs: React.FC = () => {
+  const navigate = useNavigate()
   const [searchText, setSearchText] = useState('')
   const [selectedIndustry, setSelectedIndustry] = useState<string>('')
   const [selectedJobType, setSelectedJobType] = useState<string>('')
@@ -49,9 +53,16 @@ const Jobs: React.FC = () => {
   const [salaryRange, setSalaryRange] = useState<string>('')
   const [currentPage, setCurrentPage] = useState(1)
   const [isModalVisible, setIsModalVisible] = useState(false)
+  const [selectedJob, setSelectedJob] = useState<any>(null)
   const [form] = Form.useForm()
 
   const pageSize = 8
+
+  // 使用职位申请API
+  const [applyJobWithFiles, { isLoading: isApplying }] = useApplyJobWithFilesMutation()
+  
+  // 获取用户简历数据
+  const { data: resumeData } = useGetResumeQuery()
 
   // 解析薪资范围
   const [salaryMin, salaryMax] = salaryRange ? salaryRange.split('-').map(Number) : [undefined, undefined]
@@ -82,14 +93,88 @@ const Jobs: React.FC = () => {
     setCurrentPage(1)
   }
 
-  const handleApply = async () => {
+  const handleApply = async (values: any) => {
+    if (!selectedJob) {
+      message.error('请选择要申请的职位')
+      return
+    }
+
     try {
+      // 创建FormData对象
+      const formData = new FormData()
+      
+      // 添加基本申请信息
+      formData.append('jobId', selectedJob.id)
+      formData.append('coverLetter', values.coverLetter || '')
+      formData.append('expectedSalary', values.expectedSalary?.toString() || '')
+      formData.append('availableDate', values.availableDate?.format('YYYY-MM-DD') || '')
+      formData.append('includeResume', values.includeResume ? 'true' : 'false')
+
+      // 如果用户选择包含简历信息，则添加完整的简历数据
+      if (values.includeResume && resumeData) {
+        const resumeDataObj = {
+          // 基本信息
+          basicInfo: resumeData.basicInfo || {},
+          // 简历内容
+          title: resumeData.title || '我的简历',
+          objective: resumeData.basicInfo?.jobObjective || '',
+          summary: resumeData.basicInfo?.personalSummary || '',
+          awards: resumeData.basicInfo?.awards || '',
+          hobbies: resumeData.basicInfo?.hobbies || '',
+          // 详细信息
+          education: resumeData.education || [],
+          experience: resumeData.experience || [],
+          projects: resumeData.projects || [],
+          skills: resumeData.skills || [],
+          certificates: resumeData.certificates || [],
+          languages: resumeData.languages || [],
+          attachments: resumeData.attachments || []
+        }
+        formData.append('resumeData', JSON.stringify(resumeDataObj))
+      }
+
+      // 处理附件文件
+      if (values.attachments && values.attachments.length > 0) {
+        // 获取实际的文件对象
+        const fileList = form.getFieldValue('attachments')
+        if (fileList && Array.isArray(fileList)) {
+          fileList.forEach((fileInfo: any) => {
+            if (fileInfo.originFileObj) {
+              // 如果有原始文件对象，添加到FormData
+              formData.append('additionalDocs', fileInfo.originFileObj)
+            }
+          })
+        }
+      }
+
+      console.log('提交申请数据:', {
+        jobId: selectedJob.id,
+        coverLetter: values.coverLetter,
+        expectedSalary: values.expectedSalary,
+        availableDate: values.availableDate?.format('YYYY-MM-DD'),
+        includeResume: values.includeResume,
+        attachmentCount: values.attachments?.length || 0
+      })
+
+      await applyJobWithFiles(formData).unwrap()
       message.success('申请提交成功！')
       setIsModalVisible(false)
+      setSelectedJob(null)
       form.resetFields()
-    } catch (error) {
-      message.error('申请失败，请重试')
+    } catch (error: any) {
+      console.error('申请失败:', error)
+      const errorMessage = error?.data?.message || '申请失败，请重试'
+      message.error(errorMessage)
     }
+  }
+
+  const handleOpenApplyModal = (job: any) => {
+    setSelectedJob(job)
+    setIsModalVisible(true)
+  }
+
+  const handleViewJobDetail = (jobId: string) => {
+    navigate(`/jobs/${jobId}`)
   }
 
   return (
@@ -127,6 +212,11 @@ const Jobs: React.FC = () => {
                 <Option value="FINANCE">金融</Option>
                 <Option value="EDUCATION">教育</Option>
                 <Option value="HEALTHCARE">医疗</Option>
+                <Option value="MANUFACTURING">制造业</Option>
+                <Option value="RETAIL">零售</Option>
+                <Option value="CONSULTING">咨询</Option>
+                <Option value="MEDIA">媒体</Option>
+                <Option value="OTHER">其他</Option>
               </Select>
             </Col>
             <Col xs={12} sm={6} md={4}>
@@ -187,7 +277,11 @@ const Jobs: React.FC = () => {
                       className="h-full"
                       actions={[
                         <Tooltip title="查看详情">
-                          <EyeOutlined key="view" />
+                          <EyeOutlined 
+                            key="view" 
+                            onClick={() => handleViewJobDetail(job.id)}
+                            style={{ cursor: 'pointer' }}
+                          />
                         </Tooltip>,
                         <Tooltip title="收藏">
                           <HeartOutlined key="favorite" />
@@ -256,14 +350,21 @@ const Jobs: React.FC = () => {
                         </div>
                       </Space>
 
-                      <Button 
-                        type="primary" 
-                        block 
-                        className="mt-4"
-                        onClick={() => setIsModalVisible(true)}
-                      >
-                        立即申请
-                      </Button>
+                      <div className="mt-4 space-y-2">
+                        <Button 
+                          block 
+                          onClick={() => handleViewJobDetail(job.id)}
+                        >
+                          职位详情
+                        </Button>
+                        <Button 
+                          type="primary" 
+                          block 
+                          onClick={() => handleOpenApplyModal(job)}
+                        >
+                          立即申请
+                        </Button>
+                      </div>
                     </Card>
                   </Col>
                 ))}
@@ -294,9 +395,13 @@ const Jobs: React.FC = () => {
 
         {/* 申请职位模态框 */}
         <Modal
-          title="申请职位"
+          title={`申请职位${selectedJob ? ` - ${selectedJob.title}` : ''}`}
           open={isModalVisible}
-          onCancel={() => setIsModalVisible(false)}
+          onCancel={() => {
+            setIsModalVisible(false)
+            setSelectedJob(null)
+            form.resetFields()
+          }}
           footer={null}
           width={700}
         >
@@ -353,14 +458,33 @@ const Jobs: React.FC = () => {
             >
               <Upload
                 multiple
-                beforeUpload={() => false}
+                beforeUpload={(file) => {
+                  // 检查文件类型
+                  const allowedTypes = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'image/jpeg',
+                    'image/png',
+                    'image/jpg'
+                  ]
+                  if (!allowedTypes.includes(file.type)) {
+                    message.error('只支持PDF、Word文档和图片格式！')
+                    return false
+                  }
+                  
+                  // 检查文件大小 (10MB)
+                  const isLt10M = file.size / 1024 / 1024 < 10
+                  if (!isLt10M) {
+                    message.error('文件大小不能超过10MB！')
+                    return false
+                  }
+                  
+                  return false // 阻止自动上传，我们手动处理
+                }}
                 onChange={(info) => {
-                  const fileList = info.fileList.map(file => ({
-                    name: file.name,
-                    size: file.size,
-                    type: file.type
-                  }))
-                  form.setFieldsValue({ attachments: fileList })
+                  // 直接保存文件列表，包含originFileObj
+                  form.setFieldsValue({ attachments: info.fileList })
                 }}
               >
                 <Button icon={<UploadOutlined />}>
@@ -368,16 +492,24 @@ const Jobs: React.FC = () => {
                 </Button>
               </Upload>
               <div className="text-sm text-gray-500 mt-1">
-                支持上传简历、作品集、证书等文件，单个文件不超过10MB
+                支持上传PDF、Word文档、图片等文件，单个文件不超过10MB
               </div>
             </Form.Item>
 
             <Form.Item className="mb-0 text-right">
               <Space>
-                <Button onClick={() => setIsModalVisible(false)}>
+                <Button onClick={() => {
+                  setIsModalVisible(false)
+                  setSelectedJob(null)
+                  form.resetFields()
+                }}>
                   取消
                 </Button>
-                <Button type="primary" htmlType="submit">
+                <Button 
+                  type="primary" 
+                  htmlType="submit"
+                  loading={isApplying}
+                >
                   提交申请
                 </Button>
               </Space>

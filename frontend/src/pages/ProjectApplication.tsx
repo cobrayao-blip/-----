@@ -18,7 +18,8 @@ import {
   Checkbox,
   Divider,
   Space,
-  Alert
+  Alert,
+  Descriptions
 } from 'antd'
 import { 
   ArrowLeftOutlined,
@@ -28,7 +29,8 @@ import {
   ProjectOutlined,
   CheckCircleOutlined
 } from '@ant-design/icons'
-import { useGetProjectByIdQuery, useApplyProjectMutation } from '../services/api'
+import { useGetProjectByIdQuery } from '../services/api'
+import { useApplyProjectMutation } from '../store/api/projectApi'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -41,10 +43,9 @@ interface ApplicationFormData {
     name: string
     phone: string
     email: string
-    idCard: string
     education: string
     workExperience: string
-    skills: string[]
+    skills: string
   }
   // 项目信息
   projectInfo: {
@@ -71,6 +72,12 @@ const ProjectApplication: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0)
   const [form] = Form.useForm()
   const [formData, setFormData] = useState<Partial<ApplicationFormData>>({})
+  const [fileLists, setFileLists] = useState<{[key: string]: any[]}>({
+    resume: [],
+    businessPlan: [],
+    financialReport: [],
+    otherDocs: []
+  })
   
   const { data: projectResponse, isLoading: projectLoading } = useGetProjectByIdQuery(id!)
   const [applyProject, { isLoading: applying }] = useApplyProjectMutation()
@@ -102,13 +109,23 @@ const ProjectApplication: React.FC = () => {
 
   const handleNext = async () => {
     try {
+      // 添加调试信息
+      const currentValues = form.getFieldsValue()
+      console.log('当前步骤:', currentStep)
+      console.log('当前表单值:', currentValues)
+      
       const values = await form.validateFields()
+      console.log('验证通过的值:', values)
+      
       setFormData(prev => ({
         ...prev,
         [getCurrentStepKey()]: values
       }))
       setCurrentStep(prev => prev + 1)
     } catch (error) {
+      console.error('表单验证失败:', error)
+      const currentValues = form.getFieldsValue()
+      console.log('验证失败时的表单值:', currentValues)
       message.error('请完善必填信息')
     }
   }
@@ -124,45 +141,217 @@ const ProjectApplication: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
+      // 获取当前步骤的表单数据
+      const currentStepData = form.getFieldsValue()
+      
+      // 合并所有步骤的数据
       const allFormData = {
         ...formData,
-        [getCurrentStepKey()]: form.getFieldsValue()
+        [getCurrentStepKey()]: currentStepData
       }
       
-      await applyProject({
+      console.log('所有表单数据:', allFormData);
+      
+      // 提取文件数据 - 确保从正确的位置获取文档数据
+      let documentsData = allFormData.documents || {};
+      
+      // 如果当前在文档步骤，使用当前步骤的数据
+      if (getCurrentStepKey() === 'documents') {
+        documentsData = { ...documentsData, ...currentStepData };
+      }
+      
+      console.log('文档数据:', documentsData);
+      
+      const resumeFiles = documentsData.resume || [];
+      const businessPlanFiles = documentsData.businessPlan || [];
+      const financialReportFiles = documentsData.financialReport || [];
+      const otherDocsFiles = documentsData.otherDocs || [];
+      
+      console.log('提交时的文件数据:', {
+        documentsData,
+        resumeFiles,
+        businessPlanFiles,
+        financialReportFiles,
+        otherDocsFiles
+      });
+      
+      // 提取文件URL的辅助函数
+      const extractFileUrl = (file: any) => {
+        if (!file) return null;
+        
+        console.log('提取文件URL，文件对象:', file);
+        
+        // 检查不同可能的URL字段
+        let url = null;
+        
+        if (file.url) {
+          url = file.url;
+        } else if (file.response?.data?.url) {
+          url = file.response.data.url;
+        } else if (file.response?.data?.[0]?.url) {
+          url = file.response.data[0].url;
+        } else if (Array.isArray(file.response?.data) && file.response.data.length > 0) {
+          url = file.response.data[0].url;
+        } else if (file.response?.data?.filename) {
+          // 如果有filename，构建URL
+          url = `/uploads/${file.response.data.filename}`;
+        }
+        
+        console.log('提取到的URL:', url);
+        return url;
+      };
+
+      // 构建提交数据 - 匹配后端期望的格式
+      const submitData = {
         projectId: id!,
-        applicationData: allFormData
-      }).unwrap()
+        personalInfo: allFormData.personalInfo,
+        projectInfo: allFormData.projectInfo,
+        documents: {
+          resume: resumeFiles || [],
+          businessPlan: businessPlanFiles || [],
+          financialReport: financialReportFiles || [],
+          otherDocs: otherDocsFiles || []
+        }
+      }
+      
+      console.log('最终提交数据:', submitData);
+      
+      // 验证必填字段 - 检查文件是否上传成功
+      const hasValidResumeFiles = resumeFiles && resumeFiles.length > 0 && 
+        resumeFiles.some(file => file.status === 'done' && (file.response?.success || file.url));
+      const hasValidBusinessPlanFiles = businessPlanFiles && businessPlanFiles.length > 0 && 
+        businessPlanFiles.some(file => file.status === 'done' && (file.response?.success || file.url));
+      
+      console.log('文件验证结果:', {
+        resumeFiles,
+        businessPlanFiles,
+        hasValidResumeFiles,
+        hasValidBusinessPlanFiles
+      });
+      
+      if (!hasValidResumeFiles) {
+        throw new Error('请上传简历文件并等待上传完成');
+      }
+      if (!hasValidBusinessPlanFiles) {
+        throw new Error('请上传商业计划书并等待上传完成');
+      }
+      
+      await applyProject(submitData).unwrap()
       
       message.success('申报提交成功！')
-      navigate(`/projects/${id}/application/success`)
-    } catch (error) {
-      message.error('申报提交失败，请重试')
+      navigate('/projects')
+    } catch (error: any) {
+      console.error('申报提交错误:', error)
+      
+      // 处理特定错误
+      if (error?.data?.message === '您已申请过此项目') {
+        message.error('您已申请过此项目，请勿重复申请')
+        // 可以选择跳转到申请记录页面
+        setTimeout(() => {
+          navigate('/user/applications')
+        }, 2000)
+      } else {
+        message.error(error?.data?.message || '申报提交失败，请重试')
+      }
     }
   }
 
-  const uploadProps = {
-    beforeUpload: (file: any) => {
+  // 创建上传配置的工厂函数
+  const createUploadProps = (fieldName: string) => {
+    // 从localStorage获取token
+    const token = localStorage.getItem('token');
+    console.log('文件上传使用的token:', token ? `${token.substring(0, 20)}...` : 'null');
+    
+    return {
+      action: '/api/users/upload-project-files',
+      name: 'files',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      fileList: fileLists[fieldName] || [],
+      showUploadList: {
+        showDownloadIcon: true,
+        showRemoveIcon: true,
+        showPreviewIcon: false,
+      },
+      beforeUpload: (file: any) => {
       const isValidType = file.type === 'application/pdf' || 
                          file.type === 'application/msword' || 
-                         file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                         file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                         file.type === 'image/jpeg' ||
+                         file.type === 'image/png'
       if (!isValidType) {
-        message.error('只支持 PDF、DOC、DOCX 格式文件')
+        message.error('只支持 PDF、DOC、DOCX、JPG、PNG 格式文件')
+        return false
       }
       const isLt10M = file.size / 1024 / 1024 < 10
       if (!isLt10M) {
         message.error('文件大小不能超过 10MB')
+        return false
       }
-      return isValidType && isLt10M
+      return true
     },
     onChange: (info: any) => {
-      if (info.file.status === 'done') {
-        message.success(`${info.file.name} 文件上传成功`)
+      console.log('文件状态变化:', info.file.status, info.file.name, info.file.response)
+      console.log('当前文件列表:', info.fileList)
+      
+      // 更新文件列表状态
+      const currentFileList = info.fileList || []
+      setFileLists(prev => ({
+        ...prev,
+        [fieldName]: currentFileList
+      }))
+      
+      // 更新表单字段值
+      form.setFieldsValue({
+        [fieldName]: currentFileList.length > 0 ? currentFileList : undefined
+      })
+      
+      if (info.file.status === 'uploading') {
+        console.log('上传中...', info.file.name)
+      } else if (info.file.status === 'done') {
+        console.log('上传完成，响应:', info.file.response)
+        if (info.file.response && info.file.response.success) {
+          message.success(`${info.file.name} 文件上传成功`)
+          console.log('上传成功，文件信息:', info.file.response)
+        } else {
+          console.log('上传失败，响应不成功:', info.file.response)
+          message.error(`${info.file.name} 上传失败: ${info.file.response?.message || '未知错误'}`)
+        }
       } else if (info.file.status === 'error') {
         message.error(`${info.file.name} 文件上传失败`)
+        console.error('上传错误:', info.file.error, info.file.response)
       }
+      
+      // 手动触发字段验证
+      form.validateFields([fieldName]).catch(() => {})
+      console.log('设置表单字段和文件列表:', fieldName, currentFileList)
+    },
+    onRemove: (file: any) => {
+      console.log('移除文件:', file.name)
+      // 获取当前文件列表并移除指定文件
+      const currentFiles = fileLists[fieldName] || []
+      const newFiles = currentFiles.filter((f: any) => f.uid !== file.uid)
+      
+      // 更新文件列表状态
+      setFileLists(prev => ({
+        ...prev,
+        [fieldName]: newFiles
+      }))
+      
+      // 更新表单字段值
+      const fieldValue = newFiles.length > 0 ? newFiles : undefined
+      form.setFieldsValue({
+        [fieldName]: fieldValue
+      })
+      
+      // 手动触发字段验证
+      form.validateFields([fieldName]).catch(() => {})
+      
+      console.log('移除文件后的字段值:', fieldName, fieldValue)
     }
-  }
+    };
+  };
 
   if (projectLoading) {
     return (
@@ -237,15 +426,6 @@ const ProjectApplication: React.FC = () => {
             </Col>
             <Col xs={24} md={12}>
               <Form.Item
-                name="idCard"
-                label="身份证号"
-                rules={[{ required: true, message: '请输入身份证号' }]}
-              >
-                <Input placeholder="请输入身份证号码" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
                 name="education"
                 label="学历"
                 rules={[{ required: true, message: '请选择学历' }]}
@@ -275,18 +455,12 @@ const ProjectApplication: React.FC = () => {
               <Form.Item
                 name="skills"
                 label="专业技能"
-                rules={[{ required: true, message: '请选择专业技能' }]}
+                rules={[{ required: true, message: '请填写专业技能' }]}
               >
-                <Checkbox.Group>
-                  <Row>
-                    <Col span={8}><Checkbox value="软件开发">软件开发</Checkbox></Col>
-                    <Col span={8}><Checkbox value="数据分析">数据分析</Checkbox></Col>
-                    <Col span={8}><Checkbox value="市场营销">市场营销</Checkbox></Col>
-                    <Col span={8}><Checkbox value="财务管理">财务管理</Checkbox></Col>
-                    <Col span={8}><Checkbox value="项目管理">项目管理</Checkbox></Col>
-                    <Col span={8}><Checkbox value="产品设计">产品设计</Checkbox></Col>
-                  </Row>
-                </Checkbox.Group>
+                <TextArea 
+                  rows={3} 
+                  placeholder="请描述您的专业技能，如：软件开发、数据分析、项目管理等"
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -386,13 +560,11 @@ const ProjectApplication: React.FC = () => {
                 name="resume"
                 label="个人简历"
                 rules={[{ required: true, message: '请上传个人简历' }]}
+                extra="请上传详细的个人简历，包括教育背景、工作经历等"
               >
-                <Upload {...uploadProps} maxCount={1}>
+                <Upload {...createUploadProps('resume')} maxCount={1}>
                   <Button icon={<UploadOutlined />}>上传简历 (PDF/DOC/DOCX)</Button>
                 </Upload>
-                <Text type="secondary" className="block mt-2">
-                  请上传详细的个人简历，包括教育背景、工作经历等
-                </Text>
               </Form.Item>
             </Col>
             <Col xs={24}>
@@ -400,39 +572,33 @@ const ProjectApplication: React.FC = () => {
                 name="businessPlan"
                 label="商业计划书"
                 rules={[{ required: true, message: '请上传商业计划书' }]}
+                extra="请上传完整的商业计划书，包括市场分析、财务预测等"
               >
-                <Upload {...uploadProps} maxCount={1}>
+                <Upload {...createUploadProps('businessPlan')} maxCount={1}>
                   <Button icon={<UploadOutlined />}>上传商业计划书 (PDF/DOC/DOCX)</Button>
                 </Upload>
-                <Text type="secondary" className="block mt-2">
-                  请上传完整的商业计划书，包括市场分析、财务预测等
-                </Text>
               </Form.Item>
             </Col>
             <Col xs={24}>
               <Form.Item
                 name="financialReport"
                 label="财务报告"
+                extra="可选上传，最多3个文件。如有相关财务数据或报告，请一并上传"
               >
-                <Upload {...uploadProps} maxCount={3}>
+                <Upload {...createUploadProps('financialReport')} maxCount={3}>
                   <Button icon={<UploadOutlined />}>上传财务报告 (可选)</Button>
                 </Upload>
-                <Text type="secondary" className="block mt-2">
-                  如有相关财务数据或报告，请一并上传
-                </Text>
               </Form.Item>
             </Col>
             <Col xs={24}>
               <Form.Item
                 name="otherDocs"
                 label="其他材料"
+                extra="可选上传，最多5个文件。如有专利证书、获奖证明等其他支撑材料，请上传"
               >
-                <Upload {...uploadProps} maxCount={5}>
+                <Upload {...createUploadProps('otherDocs')} maxCount={5}>
                   <Button icon={<UploadOutlined />}>上传其他材料 (可选)</Button>
                 </Upload>
-                <Text type="secondary" className="block mt-2">
-                  如有专利证书、获奖证明等其他支撑材料，请上传
-                </Text>
               </Form.Item>
             </Col>
           </Row>

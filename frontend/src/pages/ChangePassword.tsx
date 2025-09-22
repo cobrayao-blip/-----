@@ -18,17 +18,17 @@ const ChangePassword: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { user } = useAppSelector((state) => state.auth)
+  const { user, token } = useAppSelector((state) => state.auth)
 
   const handleChangePassword = async (values: ChangePasswordForm) => {
     try {
       setLoading(true)
       
       const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           currentPassword: values.currentPassword,
@@ -38,17 +38,21 @@ const ChangePassword: React.FC = () => {
 
       const data = await response.json()
 
-      if (data.success) {
+      if (response.ok && data.success) {
         message.success('密码修改成功！请重新登录')
         
         // 清除登录状态，强制重新登录
         dispatch(logout())
         navigate('/login')
       } else {
-        message.error(data.message || '密码修改失败')
+        // 显示详细的错误信息
+        const errorMessage = data.message || `密码修改失败 (${response.status})`
+        message.error(errorMessage)
+        console.error('密码修改失败:', data)
       }
     } catch (error) {
-      message.error('密码修改失败，请重试')
+      console.error('密码修改请求失败:', error)
+      message.error('网络错误，请检查连接后重试')
     } finally {
       setLoading(false)
     }

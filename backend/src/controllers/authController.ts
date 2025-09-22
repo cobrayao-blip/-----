@@ -45,6 +45,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       name: true,
       role: true,
       status: true,
+      mustChangePassword: true,
       createdAt: true,
       profile: {
         select: {
@@ -73,16 +74,20 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const token = generateToken(user.id, user.email, user.role);
 
   // 返回用户信息（不包含密码）
-  const { password: _, profile, ...userWithoutPassword } = user;
-
   res.json({
     success: true,
     data: {
       user: {
-        ...userWithoutPassword,
-        avatar: profile?.avatar || null
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        status: user.status,
+        createdAt: user.createdAt,
+        avatar: user.profile?.avatar || null
       },
-      token
+      token,
+      mustChangePassword: user.mustChangePassword
     }
   });
 });
@@ -91,6 +96,13 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 export const changePassword = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { currentPassword, newPassword } = req.body;
   const userId = req.user?.id;
+
+  console.log('密码修改请求开始:', {
+    userId,
+    hasCurrentPassword: !!currentPassword,
+    hasNewPassword: !!newPassword,
+    newPasswordLength: newPassword?.length
+  });
 
   if (!userId) {
     throw createError('用户未认证', 401);
@@ -104,42 +116,92 @@ export const changePassword = asyncHandler(async (req: AuthRequest, res: Respons
     throw createError('新密码长度至少6位', 400);
   }
 
-  // 查找用户
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      password: true
+  try {
+    // 查找用户
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        mustChangePassword: true
+      }
+    });
+
+    console.log('找到用户:', {
+      id: user?.id,
+      email: user?.email,
+      mustChangePassword: user?.mustChangePassword
+    });
+
+    if (!user) {
+      throw createError('用户不存在', 404);
     }
-  });
 
-  if (!user) {
-    throw createError('用户不存在', 404);
-  }
-
-  // 验证当前密码
-  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
-  if (!isCurrentPasswordValid) {
-    throw createError('当前密码错误', 400);
-  }
-
-  // 加密新密码
-  const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-
-  // 更新密码
-  await prisma.user.update({
-    where: { id: userId },
-    data: { 
-      password: hashedNewPassword,
-      updatedAt: new Date()
+    // 验证当前密码
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    console.log('密码验证结果:', isCurrentPasswordValid);
+    
+    if (!isCurrentPasswordValid) {
+      throw createError('当前密码错误', 400);
     }
-  });
 
-  res.json({
-    success: true,
-    message: '密码修改成功'
-  });
+    // 加密新密码
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    console.log('新密码加密完成');
+
+    // 使用事务确保数据一致性
+    const result = await prisma.$transaction(async (tx) => {
+      // 更新密码和清除强制修改密码标记
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: { 
+          password: hashedNewPassword,
+          mustChangePassword: false,
+          updatedAt: new Date()
+        },
+        select: {
+          id: true,
+          email: true,
+          mustChangePassword: true,
+          updatedAt: true
+        }
+      });
+
+      console.log('事务内更新结果:', updatedUser);
+      return updatedUser;
+    });
+
+    console.log('事务完成，最终结果:', result);
+
+    // 双重验证：再次查询确保更新成功
+    const verifyUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        mustChangePassword: true,
+        updatedAt: true
+      }
+    });
+
+    console.log('验证查询结果:', verifyUser);
+
+    if (verifyUser?.mustChangePassword !== false) {
+      console.error('❌ 警告：mustChangePassword未正确更新');
+      throw createError('密码修改失败，请重试', 500);
+    }
+
+    res.json({
+      success: true,
+      message: '密码修改成功'
+    });
+
+  } catch (error) {
+    console.error('密码修改过程中发生错误:', error);
+    throw error;
+  }
 });
+
+
 
 // 用户注册
 export const register = asyncHandler(async (req: Request, res: Response) => {
@@ -169,7 +231,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       name,
       phone,
       role: 'USER',
-      status: 'PENDING'
+      status: 'ACTIVE'
     },
     select: {
       id: true,
@@ -185,7 +247,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json({
     success: true,
     data: user,
-    message: '注册成功，请等待管理员审核'
+    message: '注册成功，您可以立即使用账户'
   });
 });
 

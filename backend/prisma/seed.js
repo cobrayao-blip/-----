@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma = new client_1.PrismaClient();
 async function main() {
     console.log('开始填充种子数据...');
@@ -13,15 +17,15 @@ async function main() {
     await prisma.park.deleteMany();
     await prisma.userProfile.deleteMany();
     await prisma.user.deleteMany();
-    await prisma.admin.deleteMany();
     console.log('已清空现有数据');
-    // 创建用户
+    // 创建管理员用户
+    const hashedPassword = await bcryptjs_1.default.hash('admin123', 10);
     const users = await Promise.all([
         prisma.user.create({
             data: {
                 email: 'admin@xiaoyao.com',
                 name: '系统管理员',
-                password: '$2b$10$rOzJqQqQqQqQqQqQqQqQqO', // 实际应用中应该是加密后的密码
+                password: hashedPassword,
                 role: 'ADMIN',
                 phone: '13800138000'
             }

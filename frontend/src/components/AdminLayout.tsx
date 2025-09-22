@@ -13,7 +13,7 @@ import {
   BellOutlined
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useAppDispatch } from '../store'
+import { useAppDispatch, useAppSelector } from '../store'
 import { logout } from '../store/slices/authSlice'
 
 const { Header, Sider, Content } = Layout
@@ -24,10 +24,32 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const dispatch = useAppDispatch()
+  const { user } = useAppSelector((state) => state.auth)
 
   const handleLogout = () => {
     dispatch(logout())
     navigate('/')
+  }
+
+  // 获取管理员角色显示名称
+  const getAdminRoleLabel = (role: string) => {
+    switch (role) {
+      case 'SUPER_ADMIN': return '超级管理员'
+      case 'ADMIN': return '普通管理员'
+      default: return '管理员'
+    }
+  }
+
+  // 处理用户菜单点击
+  const handleUserMenuClick = ({ key }: { key: string }) => {
+    switch (key) {
+      case 'profile':
+        navigate('/profile')
+        break
+      case 'logout':
+        handleLogout()
+        break
+    }
   }
 
   const menuItems = [
@@ -67,12 +89,7 @@ const AdminLayout: React.FC = () => {
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: '个人资料'
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '账户设置'
+      label: '个人中心'
     },
     {
       type: 'divider' as const
@@ -80,8 +97,7 @@ const AdminLayout: React.FC = () => {
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: '退出登录',
-      onClick: handleLogout
+      label: '退出登录'
     }
   ]
 
@@ -142,13 +158,18 @@ const AdminLayout: React.FC = () => {
             <Button type="text" icon={<BellOutlined />} />
             
             <Dropdown
-              menu={{ items: userMenuItems }}
+              menu={{ 
+                items: userMenuItems,
+                onClick: handleUserMenuClick
+              }}
               placement="bottomRight"
               arrow
             >
               <Space className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
                 <Avatar icon={<UserOutlined />} />
-                <span className="text-gray-700">管理员</span>
+                <span className="text-gray-700">
+                  {user ? getAdminRoleLabel(user.role) : '管理员'}
+                </span>
               </Space>
             </Dropdown>
           </div>

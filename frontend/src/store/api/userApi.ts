@@ -89,6 +89,54 @@ export const userApi = authApi.injectEndpoints({
         body: data,
       }),
     }),
+
+    // 获取项目申报详情
+    getProjectApplicationDetail: builder.query<ApiResponse<any>, string>({
+      query: (id) => `/users/applications/projects/${id}`,
+      providesTags: ['Application'],
+    }),
+
+    // 更新项目申报
+    updateProjectApplication: builder.mutation<ApiResponse<any>, {
+      id: string
+      personalInfo?: any
+      projectInfo?: any
+      resumeUrl?: string
+      businessPlanUrl?: string
+      financialReportUrl?: string
+      otherDocsUrl?: string
+      message?: string
+    }>({
+      query: ({ id, ...data }) => ({
+        url: `/users/applications/projects/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Application'],
+    }),
+
+    // 获取工作申请详情
+    getJobApplicationDetail: builder.query<ApiResponse<any>, string>({
+      query: (id) => `/users/applications/jobs/${id}`,
+      providesTags: ['Application'],
+    }),
+
+    // 更新工作申请
+    updateJobApplication: builder.mutation<ApiResponse<any>, {
+      id: string
+      coverLetter?: string
+      resumeUrl?: string
+      expectedSalary?: string
+      availableDate?: string
+      additionalDocs?: string
+    }>({
+      query: ({ id, ...data }) => ({
+        url: `/users/applications/jobs/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Application'],
+    }),
   }),
 })
 
@@ -99,4 +147,8 @@ export const {
   useGetUserApplicationsQuery,
   useUpdateUserInfoMutation,
   useChangePasswordMutation,
+  useGetProjectApplicationDetailQuery,
+  useUpdateProjectApplicationMutation,
+  useGetJobApplicationDetailQuery,
+  useUpdateJobApplicationMutation,
 } = userApi

@@ -75,6 +75,18 @@ const Projects: React.FC = () => {
     navigate(`/projects/${projectId}`)
   }
 
+  // 项目分类翻译函数
+  const getCategoryLabel = (category: string) => {
+    const categoryMap: Record<string, string> = {
+      'TECH': '科技创新',
+      'STARTUP': '创业扶持',
+      'TALENT': '人才引进',
+      'RESEARCH': '科研项目',
+      'OTHER': '其他'
+    }
+    return categoryMap[category] || category
+  }
+
   // 计算申报进度
   const getApplicationProgress = (project: any) => {
     const now = dayjs()
@@ -135,12 +147,11 @@ const Projects: React.FC = () => {
                   handleFilterChange()
                 }}
               >
-                <Option value="AI">人工智能</Option>
-                <Option value="ENERGY">新能源</Option>
-                <Option value="BIOTECH">生物技术</Option>
-                <Option value="FINTECH">金融科技</Option>
-                <Option value="EDUCATION">教育科技</Option>
-                <Option value="HEALTHCARE">医疗健康</Option>
+                <Option value="TECH">科技创新</Option>
+                <Option value="STARTUP">创业扶持</Option>
+                <Option value="TALENT">人才引进</Option>
+                <Option value="RESEARCH">科研项目</Option>
+                <Option value="OTHER">其他</Option>
               </Select>
             </Col>
             
@@ -194,7 +205,7 @@ const Projects: React.FC = () => {
                         hoverable
                         className="h-full"
                         cover={
-                          <div className="h-48 bg-gradient-to-r from-purple-400 to-pink-500 flex items-center justify-center relative">
+                          <div className="h-24 bg-gradient-to-r from-purple-400 to-pink-500 flex items-center justify-center relative">
                             <div className="text-center text-white">
                               <RocketOutlined className="text-4xl mb-2" />
                               <div className="text-lg font-semibold">{project.title}</div>
@@ -227,7 +238,7 @@ const Projects: React.FC = () => {
                                   {project.title}
                                 </Text>
                                 <Tag color="blue">
-                                  {project.category}
+                                  {getCategoryLabel(project.category)}
                                 </Tag>
                               </div>
                             </Space>

@@ -172,7 +172,8 @@ class AdminController {
         role,
         password: hashedPassword,
         status: 'ACTIVE',
-        // 新创建的管理员账户状态为PENDING，需要首次登录后激活
+        // 新创建的普通管理员需要首次登录时修改密码
+        mustChangePassword: role === 'ADMIN' ? true : false,
       },
       select: {
         id: true,
@@ -221,17 +222,51 @@ class AdminController {
 
   deleteUser = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
+    const currentUserRole = req.user?.role;
+    const currentUserId = req.user?.id;
 
-    // 不允许删除管理员账户
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: { role: true }
-    });
-
-    if (user?.role === 'ADMIN') {
+    // 不能删除自己
+    if (id === currentUserId) {
       return res.status(403).json({
         success: false,
-        message: '不能删除管理员账户'
+        message: '不能删除自己的账户'
+      });
+    }
+
+    // 获取要删除的用户信息
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { role: true, name: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    // 权限控制：
+    // 1. 普通管理员(ADMIN)只能删除普通用户(USER, VIP)
+    // 2. 系统管理员(SUPER_ADMIN)可以删除普通管理员和普通用户，但不能删除其他系统管理员
+    if (currentUserRole === 'ADMIN') {
+      if (!['USER', 'VIP'].includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: '权限不足，无法删除该用户'
+        });
+      }
+    } else if (currentUserRole === 'SUPER_ADMIN') {
+      if (user.role === 'SUPER_ADMIN') {
+        return res.status(403).json({
+          success: false,
+          message: '不能删除其他系统管理员账户'
+        });
+      }
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: '权限不足'
       });
     }
 
@@ -403,13 +438,36 @@ class AdminController {
 
   // 工作管理
   getJobs = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const jobs = await prisma.jobOpportunity.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
+    const { page = 1, limit = 10, search, status, type } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const where: any = {};
+    
+    if (search) {
+      where.OR = [
+        { title: { contains: search as string } },
+        { company: { contains: search as string } },
+        { description: { contains: search as string } }
+      ];
+    }
+    
+    if (status) where.status = status;
+    if (type) where.type = type;
+
+    const [jobs, total] = await Promise.all([
+      prisma.jobOpportunity.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Number(limit)
+      }),
+      prisma.jobOpportunity.count({ where })
+    ]);
 
     res.json({
       success: true,
-      data: jobs
+      data: jobs,
+      total
     });
   });
 
@@ -455,21 +513,35 @@ class AdminController {
 
   // 申请审核
   getProjectApplications = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const applications = await prisma.projectApplication.findMany({
-      include: {
-        user: {
-          select: { id: true, name: true, email: true }
+    const { page = 1, limit = 10, status } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const where = status ? { status: status as string } : {};
+    
+    const [applications, total] = await Promise.all([
+      prisma.projectApplication.findMany({
+        where,
+        include: {
+          user: {
+            select: { id: true, name: true, email: true }
+          },
+          project: {
+            select: { id: true, title: true, category: true }
+          }
         },
-        project: {
-          select: { id: true, title: true, category: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Number(limit)
+      }),
+      prisma.projectApplication.count({ where })
+    ]);
 
     res.json({
       success: true,
-      data: applications
+      data: {
+        applications,
+        total
+      }
     });
   });
 
@@ -486,28 +558,73 @@ class AdminController {
       }
     });
 
+    const statusMessages = {
+      'APPROVED': '审核通过',
+      'REJECTED': '审核拒绝',
+      'RETURNED': '已退回，请申报人修改后重新提交'
+    };
+
     res.json({
       success: true,
-      message: '审核完成'
+      message: statusMessages[status as keyof typeof statusMessages] || '审核完成'
     });
   });
 
   getJobApplications = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const applications = await prisma.jobApplication.findMany({
-      include: {
-        user: {
-          select: { id: true, name: true, email: true }
+    const { page = 1, limit = 10, status } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const where = status ? { status: status as string } : {};
+    
+    const [applications, total] = await Promise.all([
+      prisma.jobApplication.findMany({
+        where,
+        select: {
+          id: true,
+          jobId: true,
+          userId: true,
+          coverLetter: true,
+          resumeUrl: true,
+          resumeData: true,
+          expectedSalary: true,
+          availableDate: true,
+          additionalDocs: true,
+          status: true,
+          reviewNote: true,
+          reviewedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: { id: true, name: true, email: true, phone: true }
+          },
+          job: {
+            select: { id: true, title: true, company: true, location: true }
+          }
         },
-        job: {
-          select: { id: true, title: true, company: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Number(limit)
+      }),
+      prisma.jobApplication.count({ where })
+    ]);
+
+    console.log('管理后台获取职位申请:', applications.length, '条');
+    if (applications.length > 0) {
+      console.log('第一条申请记录:', {
+        id: applications[0].id,
+        hasResumeData: !!applications[0].resumeData,
+        hasAdditionalDocs: !!applications[0].additionalDocs,
+        resumeDataLength: applications[0].resumeData?.length || 0,
+        additionalDocsLength: applications[0].additionalDocs?.length || 0
+      });
+    }
 
     res.json({
       success: true,
-      data: applications
+      data: {
+        applications,
+        total
+      }
     });
   });
 
@@ -524,9 +641,15 @@ class AdminController {
       }
     });
 
+    const statusMessages = {
+      'APPROVED': '审核通过',
+      'REJECTED': '审核拒绝',
+      'RETURNED': '已退回，请申报人修改后重新提交'
+    };
+
     res.json({
       success: true,
-      message: '审核完成'
+      message: statusMessages[status as keyof typeof statusMessages] || '审核完成'
     });
   });
 
@@ -541,13 +664,139 @@ class AdminController {
       });
     }
 
-    const uploadedFiles = files.map(file => ({
-      name: file.originalname,
-      filename: file.filename,
-      url: `/uploads/${file.filename}`,
-      size: file.size,
-      mimetype: file.mimetype
-    }));
+    // 增强版文件名编码修复函数
+    const fixFileNameEncoding = (originalName: string): string => {
+      try {
+        console.log('开始修复文件名编码:', originalName);
+        
+        // 检查是否需要修复（包含乱码特征）
+        const needsFix = /[ï¿½]/.test(originalName) || 
+                        /[\u00C0-\u00FF]{2,}/.test(originalName) ||
+                        /\\x[0-9a-fA-F]{2}/.test(originalName) ||
+                        /[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ]{2,}/.test(originalName);
+        
+        if (!needsFix) {
+          console.log('文件名无需修复');
+          return originalName;
+        }
+        
+        console.log('检测到编码问题，开始修复...');
+        
+        // 策略1: 处理\x转义序列
+        if (/\\x[0-9a-fA-F]{2}/.test(originalName)) {
+          try {
+            console.log('尝试修复\\x转义序列');
+            let fixed = originalName.replace(/\\x([0-9a-fA-F]{2})/g, (match, hex) => {
+              return String.fromCharCode(parseInt(hex, 16));
+            });
+            
+            // 然后尝试UTF-8解码
+            const buffer = Buffer.from(fixed, 'latin1');
+            fixed = buffer.toString('utf8');
+            
+            if (/[\u4e00-\u9fff]/.test(fixed)) {
+              console.log('\\x转义序列修复成功:', fixed);
+              return fixed;
+            }
+          } catch (e) {
+            console.log('\\x转义序列修复失败:', e);
+          }
+        }
+        
+        // 策略2: Latin-1 -> UTF-8 转换
+        try {
+          console.log('尝试Latin-1到UTF-8转换');
+          const buffer = Buffer.from(originalName, 'latin1');
+          const fixed = buffer.toString('utf8');
+          
+          if (/[\u4e00-\u9fff]/.test(fixed)) {
+            console.log('Latin-1转UTF-8修复成功:', fixed);
+            return fixed;
+          }
+        } catch (e) {
+          console.log('Latin-1转UTF-8失败:', e);
+        }
+        
+        // 策略3: URL解码
+        try {
+          console.log('尝试URL解码');
+          const decoded = decodeURIComponent(escape(originalName));
+          
+          if (/[\u4e00-\u9fff]/.test(decoded)) {
+            console.log('URL解码修复成功:', decoded);
+            return decoded;
+          }
+        } catch (e) {
+          console.log('URL解码失败:', e);
+        }
+        
+        // 策略4: 直接字节重新解释
+        try {
+          console.log('尝试字节重新解释');
+          const bytes = [];
+          for (let i = 0; i < originalName.length; i++) {
+            bytes.push(originalName.charCodeAt(i) & 0xFF);
+          }
+          const buffer = Buffer.from(bytes);
+          const fixed = buffer.toString('utf8');
+          
+          if (/[\u4e00-\u9fff]/.test(fixed)) {
+            console.log('字节重新解释修复成功:', fixed);
+            return fixed;
+          }
+        } catch (e) {
+          console.log('字节重新解释失败:', e);
+        }
+        
+        // 策略5: 常见乱码模式替换
+        try {
+          console.log('尝试常见乱码模式替换');
+          const commonPatterns = {
+            'å¼ ': '张',
+            'ä¸\x89': '三',
+            'ç®\x80': '简',
+            'å\x8E\x86': '历',
+            'è¯\x81': '证',
+            'ä¹¦': '书',
+            'å¥\x96': '奖',
+            'ç\x8A¶': '状'
+          };
+          
+          let fixed = originalName;
+          for (const [pattern, replacement] of Object.entries(commonPatterns)) {
+            fixed = fixed.replace(new RegExp(pattern, 'g'), replacement);
+          }
+          
+          if (fixed !== originalName && /[\u4e00-\u9fff]/.test(fixed)) {
+            console.log('模式替换修复成功:', fixed);
+            return fixed;
+          }
+        } catch (e) {
+          console.log('模式替换失败:', e);
+        }
+        
+        console.log('所有修复策略都失败，返回原始文件名');
+        return originalName;
+        
+      } catch (e) {
+        console.error('文件名编码修复过程出错:', e);
+        return originalName;
+      }
+    };
+
+    const uploadedFiles = files.map(file => {
+      const fixedName = fixFileNameEncoding(file.originalname);
+      console.log(`管理员文件名修复: ${file.originalname} -> ${fixedName}`);
+      
+      return {
+        name: fixedName,
+        originalName: fixedName,
+        filename: file.filename,
+        url: `/uploads/${file.filename}`,
+        size: file.size,
+        mimetype: file.mimetype
+      };
+    });
 
     res.json({
       success: true,

@@ -1,5 +1,4 @@
-import { baseApi, ApiResponse, PaginationParams } from './baseApi'
-import type { RootState } from '../index'
+import { baseApi } from './baseApi'
 
 // 定义接口类型
 export interface User {
@@ -83,14 +82,21 @@ export interface Job {
   title: string
   company: string
   description: string
-  requirements: string[]
-  salary: {
-    min: number
-    max: number
-  }
+  type: string
+  level: string
+  department?: string
   location: string
-  type: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT'
-  status: 'OPEN' | 'CLOSED' | 'DRAFT'
+  salary?: string
+  benefits?: string
+  requirements?: string
+  companySize?: string
+  industry?: string
+  publishDate: string
+  validUntil?: string
+  contact?: string
+  viewCount: number
+  applicationCount: number
+  status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED'
   createdAt: string
   updatedAt: string
 }
@@ -109,6 +115,7 @@ export interface Application {
   reviewer?: string
   reviewComment?: string
   documents: string[]
+  originalData?: any // 保留原始数据用于详情显示
 }
 
 export interface DashboardStats {
@@ -322,7 +329,7 @@ export const adminApi = baseApi.injectEndpoints({
 
     deleteProject: builder.mutation<void, string>({
       query: (id) => ({
-        url: `/projects/${id}`,
+        url: `/admin/projects/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Project'],
@@ -334,6 +341,18 @@ export const adminApi = baseApi.injectEndpoints({
         url: '/admin/jobs',
         params: { page, limit, search, status, type },
       }),
+      transformResponse: (response: any) => {
+        console.log('职位API响应:', response)
+        // 处理后端返回的数据结构
+        if (response.success && response.data) {
+          const jobs = Array.isArray(response.data) ? response.data : []
+          return {
+            jobs,
+            total: jobs.length
+          }
+        }
+        return { jobs: [], total: 0 }
+      },
       providesTags: ['Job'],
     }),
 
@@ -348,7 +367,7 @@ export const adminApi = baseApi.injectEndpoints({
 
     updateJob: builder.mutation<Job, { id: string } & Partial<Job>>({
       query: ({ id, ...job }) => ({
-        url: `/jobs/${id}`,
+        url: `/admin/jobs/${id}`,
         method: 'PUT',
         body: job,
       }),
@@ -357,7 +376,7 @@ export const adminApi = baseApi.injectEndpoints({
 
     deleteJob: builder.mutation<void, string>({
       query: (id) => ({
-        url: `/jobs/${id}`,
+        url: `/admin/jobs/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Job'],
@@ -369,6 +388,33 @@ export const adminApi = baseApi.injectEndpoints({
         url: '/admin/applications/projects',
         params: { page, limit, status },
       }),
+      transformResponse: (response: any) => {
+        if (response.success && response.data) {
+          const transformedApplications = response.data.applications.map((app: any) => ({
+            id: app.id,
+            type: 'PROJECT' as const,
+            applicantId: app.user?.id || app.userId,
+            applicantName: app.user?.name || '未知用户',
+            applicantEmail: app.user?.email || '未知邮箱',
+            targetId: app.project?.id || app.projectId,
+            targetTitle: app.project?.title || '未知项目',
+            status: app.status,
+            submitTime: app.createdAt,
+            reviewTime: app.reviewedAt,
+            reviewer: app.reviewer || '',
+            reviewComment: app.reviewNote || '',
+            documents: [],
+            // 保留原始数据用于详情显示
+            originalData: app
+          }));
+          
+          return {
+            applications: transformedApplications,
+            total: response.data.total || 0
+          };
+        }
+        return { applications: [], total: 0 };
+      },
       providesTags: ['Application'],
     }),
 
@@ -377,23 +423,50 @@ export const adminApi = baseApi.injectEndpoints({
         url: '/admin/applications/jobs',
         params: { page, limit, status },
       }),
+      transformResponse: (response: any) => {
+        if (response.success && response.data) {
+          const transformedApplications = response.data.applications.map((app: any) => ({
+            id: app.id,
+            type: 'JOB' as const,
+            applicantId: app.user?.id || app.userId,
+            applicantName: app.user?.name || '未知用户',
+            applicantEmail: app.user?.email || '未知邮箱',
+            targetId: app.job?.id || app.jobId,
+            targetTitle: app.job?.title || '未知职位',
+            status: app.status,
+            submitTime: app.createdAt,
+            reviewTime: app.reviewedAt,
+            reviewer: app.reviewer || '',
+            reviewComment: app.reviewNote || '',
+            documents: [],
+            // 保留原始数据用于详情显示
+            originalData: app
+          }));
+          
+          return {
+            applications: transformedApplications,
+            total: response.data.total || 0
+          };
+        }
+        return { applications: [], total: 0 };
+      },
       providesTags: ['Application'],
     }),
 
     reviewProjectApplication: builder.mutation<Application, { id: string, status: string, comment?: string }>({
       query: ({ id, status, comment }) => ({
-        url: `/applications/projects/${id}`,
+        url: `/admin/applications/projects/${id}`,
         method: 'PUT',
-        body: { status, comment },
+        body: { status, reviewNote: comment },
       }),
       invalidatesTags: ['Application'],
     }),
 
     reviewJobApplication: builder.mutation<Application, { id: string, status: string, comment?: string }>({
       query: ({ id, status, comment }) => ({
-        url: `/applications/jobs/${id}`,
+        url: `/admin/applications/jobs/${id}`,
         method: 'PUT',
-        body: { status, comment },
+        body: { status, reviewNote: comment },
       }),
       invalidatesTags: ['Application'],
     }),

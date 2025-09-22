@@ -18,7 +18,9 @@ import ProjectDetailPage from './pages/ProjectDetail'
 import ProjectApplicationPage from './pages/ProjectApplication'
 import ApplicationSuccessPage from './pages/ApplicationSuccess'
 import MyApplicationsPage from './pages/MyApplications'
+import EditProjectApplication from './pages/User/EditProjectApplication'
 import JobsPage from './pages/Jobs'
+import JobDetailPage from './pages/JobDetail'
 import ProfilePage from './pages/Profile'
 import ResumePage from './pages/Resume'
 import TestLoginPage from './pages/TestLogin'
@@ -81,7 +83,14 @@ function App() {
               <MyApplicationsPage />
             </ProtectedRoute>
           } />
+
+          <Route path="projects/edit-application/:id" element={
+            <ProtectedRoute>
+              <EditProjectApplication />
+            </ProtectedRoute>
+          } />
           <Route path="jobs" element={<JobsPage />} />
+          <Route path="jobs/:id" element={<JobDetailPage />} />
           
           {/* 需要登录的路由 */}
           <Route path="profile" element={

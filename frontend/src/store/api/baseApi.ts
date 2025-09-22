@@ -16,7 +16,7 @@ export interface PaginationParams {
 export const baseApi = createApi({
   reducerPath: 'baseApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:5000/api',
+    baseUrl: '/api',
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState).auth.token
       if (token) {
@@ -25,6 +25,6 @@ export const baseApi = createApi({
       return headers
     },
   }),
-  tagTypes: ['User', 'Park', 'Policy', 'Project', 'Job', 'Application'],
+  tagTypes: ['User', 'Park', 'Policy', 'Project', 'Job', 'Application', 'Dashboard'],
   endpoints: () => ({}),
 })

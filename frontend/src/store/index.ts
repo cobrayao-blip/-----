@@ -7,10 +7,13 @@ import authSlice from './slices/authSlice'
 import userSlice from './slices/userSlice'
 
 // 导入API
-import { authApi } from './api/authApi'
-import { adminApi } from './api/adminApi'
+import { baseApi } from './api/baseApi'
 import { api } from '../services/api'
 import { resumeApi } from '../services/resumeApi'
+
+// 导入API以确保endpoints被注入到baseApi
+import './api/authApi'
+import './api/adminApi'
 
 export const store = configureStore({
   reducer: {
@@ -18,9 +21,8 @@ export const store = configureStore({
     auth: authSlice,
     user: userSlice,
     
-    // API slice - 使用baseApi作为主要的API reducer
-    [authApi.reducerPath]: authApi.reducer,
-    [adminApi.reducerPath]: adminApi.reducer,
+    // API slice
+    [baseApi.reducerPath]: baseApi.reducer,
     [api.reducerPath]: api.reducer,
     [resumeApi.reducerPath]: resumeApi.reducer,
   },
@@ -30,10 +32,9 @@ export const store = configureStore({
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
       },
     }).concat(
-      authApi.middleware,
-      adminApi.middleware,
+      baseApi.middleware,
       api.middleware,
-      resumeApi.middleware,
+      resumeApi.middleware
     ),
 })
 

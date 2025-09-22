@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { 
   Typography, 
   Button, 
@@ -7,7 +7,9 @@ import {
   Card, 
   Space, 
   Statistic,
-  Avatar
+  Avatar,
+  Rate,
+  Spin
 } from 'antd'
 import { 
   RocketOutlined, 
@@ -21,7 +23,40 @@ import { Link } from 'react-router-dom'
 
 const { Title, Paragraph } = Typography
 
+interface Testimonial {
+  id: string
+  name: string
+  role: string
+  content: string
+  rating: number
+  avatar?: string
+  enabled: boolean
+}
+
 const Home: React.FC = () => {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
+  const [testimonialsLoading, setTestimonialsLoading] = useState(true)
+
+  // 获取评价数据
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      try {
+        const response = await fetch('/api/testimonials')
+        if (response.ok) {
+          const data = await response.json()
+          setTestimonials(data.testimonials || [])
+        } else {
+          console.error('获取评价数据失败:', response.statusText)
+        }
+      } catch (error) {
+        console.error('获取评价数据出错:', error)
+      } finally {
+        setTestimonialsLoading(false)
+      }
+    }
+
+    fetchTestimonials()
+  }, [])
   const features = [
     {
       icon: <BankOutlined className="text-4xl text-blue-500" />,
@@ -56,26 +91,7 @@ const Home: React.FC = () => {
     { title: '职位机会', value: 5000, suffix: '+' }
   ]
 
-  const testimonials = [
-    {
-      name: '张创业',
-      role: '科技公司CEO',
-      avatar: 'https://via.placeholder.com/64x64?text=用户',
-      content: '通过逍遥人才网，我们成功入驻了理想的科技园区，享受到了优质的政策支持。'
-    },
-    {
-      name: '李工程师',
-      role: '高级工程师',
-      avatar: '/api/placeholder/64/64',
-      content: '平台提供的职位信息很精准，帮助我找到了心仪的工作机会。'
-    },
-    {
-      name: '王投资人',
-      role: '投资经理',
-      avatar: '/api/placeholder/64/64',
-      content: '这里有很多优质的创业项目，是我们寻找投资标的的重要渠道。'
-    }
-  ]
+
 
   return (
     <div className="min-h-screen">
@@ -161,29 +177,46 @@ const Home: React.FC = () => {
             </Paragraph>
           </div>
           
-          <Row gutter={[32, 32]}>
-            {testimonials.map((testimonial, index) => (
-              <Col xs={24} md={8} key={index}>
-                <Card className="h-full">
-                  <div className="flex items-center mb-4">
-                    <Avatar src={testimonial.avatar} size={48} className="mr-3" />
-                    <div>
-                      <div className="font-semibold">{testimonial.name}</div>
-                      <div className="text-gray-500 text-sm">{testimonial.role}</div>
+          {testimonialsLoading ? (
+            <div className="text-center py-8">
+              <Spin size="large" />
+            </div>
+          ) : testimonials.length > 0 ? (
+            <Row gutter={[32, 32]}>
+              {testimonials.slice(0, 6).map((testimonial) => (
+                <Col xs={24} md={8} key={testimonial.id}>
+                  <Card className="h-full">
+                    <div className="flex items-center mb-4">
+                      <Avatar 
+                        src={testimonial.avatar} 
+                        size={48} 
+                        className="mr-3"
+                        style={{ backgroundColor: '#1890ff' }}
+                      >
+                        {testimonial.name.charAt(0)}
+                      </Avatar>
+                      <div>
+                        <div className="font-semibold">{testimonial.name}</div>
+                        <div className="text-gray-500 text-sm">
+                          {testimonial.role}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex mb-3">
-                    {[...Array(5)].map((_, i) => (
-                      <StarOutlined key={i} className="text-yellow-400" />
-                    ))}
-                  </div>
-                  <Paragraph className="text-gray-600">
-                    "{testimonial.content}"
-                  </Paragraph>
-                </Card>
-              </Col>
-            ))}
-          </Row>
+                    <div className="mb-3">
+                      <Rate disabled defaultValue={testimonial.rating} />
+                    </div>
+                    <Paragraph className="text-gray-600">
+                      "{testimonial.content}"
+                    </Paragraph>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <div className="text-center py-8">
+              <Paragraph className="text-gray-500">暂无用户评价</Paragraph>
+            </div>
+          )}
         </div>
       </section>
 

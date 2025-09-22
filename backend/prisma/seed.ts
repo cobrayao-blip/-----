@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -14,17 +15,19 @@ async function main() {
   await prisma.park.deleteMany()
   await prisma.userProfile.deleteMany()
   await prisma.user.deleteMany()
-  await prisma.admin.deleteMany()
+
 
   console.log('已清空现有数据')
 
-  // 创建用户
+  // 创建管理员用户
+  const hashedPassword = await bcrypt.hash('admin123', 10)
+  
   const users = await Promise.all([
     prisma.user.create({
       data: {
         email: 'admin@xiaoyao.com',
         name: '系统管理员',
-        password: '$2b$10$rOzJqQqQqQqQqQqQqQqQqO', // 实际应用中应该是加密后的密码
+        password: hashedPassword,
         role: 'ADMIN',
         phone: '13800138000'
       }

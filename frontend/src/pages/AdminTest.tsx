@@ -9,6 +9,28 @@ const AdminTest: React.FC = () => {
   const navigate = useNavigate()
   const { user, isAuthenticated, token } = useAppSelector((state) => state.auth)
 
+  // 角色翻译函数
+  const getRoleLabel = (role: string) => {
+    const roleMap: Record<string, string> = {
+      'SUPER_ADMIN': '超级管理员',
+      'ADMIN': '管理员',
+      'VIP': 'VIP用户',
+      'USER': '普通用户'
+    }
+    return roleMap[role] || role
+  }
+
+  // 状态翻译函数
+  const getStatusLabel = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'ACTIVE': '活跃',
+      'INACTIVE': '非活跃',
+      'SUSPENDED': '已暂停',
+      'BANNED': '已封禁'
+    }
+    return statusMap[status] || status
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Title level={2}>🔐 管理员权限测试</Title>
@@ -35,11 +57,11 @@ const AdminTest: React.FC = () => {
                   <Text strong style={{ 
                     color: user.role === 'ADMIN' ? '#f5222d' : '#1890ff' 
                   }}>
-                    {user.role}
+                    {getRoleLabel(user.role)}
                   </Text>
                 </Descriptions.Item>
                 <Descriptions.Item label="状态">
-                  {user.status}
+                  {getStatusLabel(user.status)}
                 </Descriptions.Item>
               </Descriptions>
               

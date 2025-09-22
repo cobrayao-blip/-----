@@ -39,6 +39,13 @@ const authSlice = createSlice({
   reducers: {
     setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
       const { user, token } = action.payload
+      
+      // 先清除所有之前的会话数据
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      localStorage.removeItem('userAvatar')
+      
+      // 设置新的用户信息
       state.user = user
       state.token = token
       state.isAuthenticated = true

@@ -1,286 +1,274 @@
-import React from 'react'
-import { Typography, Card, Row, Col, Form, Input, Button, Space, message, Divider } from 'antd'
+import React, { useState, useEffect } from 'react'
+import { Typography, Card, Row, Col, Space, message, Divider, Spin, Button } from 'antd'
 import { 
   PhoneOutlined, 
   MailOutlined, 
   EnvironmentOutlined, 
   ClockCircleOutlined,
   WechatOutlined,
-  QqOutlined,
-  SendOutlined
+  QqOutlined
 } from '@ant-design/icons'
 
 const { Title, Paragraph, Text } = Typography
-const { TextArea } = Input
+
+interface ContactInfo {
+  id: string
+  type: 'phone' | 'email' | 'address' | 'hours' | 'department' | 'social' | 'location' | 'transport' | 'nearby'
+  title: string
+  content: string
+  description?: string
+  qrCode?: string
+  order: number
+  enabled: boolean
+}
 
 const Contact: React.FC = () => {
-  const [form] = Form.useForm()
+  const [contactInfos, setContactInfos] = useState<ContactInfo[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const handleSubmit = async (values: any) => {
+  useEffect(() => {
+    fetchContactInfos()
+  }, [])
+
+  const fetchContactInfos = async () => {
     try {
-      // 这里应该调用API提交联系表单
-      console.log('Contact form submitted:', values)
-      message.success('您的消息已发送，我们会尽快回复！')
-      form.resetFields()
+      const response = await fetch('/api/content/contacts')
+      const data = await response.json()
+      console.log('获取到的联系信息数据:', data)
+      if (data.success) {
+        setContactInfos(data.data)
+        console.log('社交媒体联系信息:', data.data.filter(info => info.type === 'social'))
+      } else {
+        message.error('获取联系信息失败')
+      }
     } catch (error) {
-      message.error('发送失败，请稍后重试')
+      console.error('获取联系信息失败:', error)
+      message.error('获取联系信息失败')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const contactInfo = [
-    {
-      icon: <PhoneOutlined className="text-blue-500" />,
-      title: '客服热线',
-      content: '400-888-8888',
-      description: '7×24小时服务热线'
-    },
-    {
-      icon: <MailOutlined className="text-green-500" />,
-      title: '邮箱地址',
-      content: 'contact@xiaoyao.com',
-      description: '商务合作与意见建议'
-    },
-    {
-      icon: <EnvironmentOutlined className="text-red-500" />,
-      title: '公司地址',
-      content: '北京市海淀区中关村科技园',
-      description: '欢迎预约实地参观'
-    },
-    {
-      icon: <ClockCircleOutlined className="text-orange-500" />,
-      title: '工作时间',
-      content: '周一至周五 9:00-18:00',
-      description: '节假日客服在线'
+  const getIconByType = (type: string) => {
+    switch (type) {
+      case 'phone':
+        return <PhoneOutlined className="text-blue-500" />
+      case 'email':
+        return <MailOutlined className="text-green-500" />
+      case 'address':
+        return <EnvironmentOutlined className="text-red-500" />
+      case 'hours':
+        return <ClockCircleOutlined className="text-orange-500" />
+      case 'department':
+        return <PhoneOutlined className="text-purple-500" />
+      case 'social':
+        return <WechatOutlined className="text-green-600" />
+      case 'location':
+        return <EnvironmentOutlined className="text-blue-600" />
+      case 'transport':
+        return <EnvironmentOutlined className="text-indigo-500" />
+      case 'nearby':
+        return <EnvironmentOutlined className="text-teal-500" />
+      default:
+        return <PhoneOutlined className="text-gray-500" />
     }
-  ]
+  }
 
-  const socialContacts = [
-    {
-      icon: <WechatOutlined className="text-green-600" />,
-      title: '微信客服',
-      content: 'xiaoyao_service',
-      qr: '/images/wechat-qr.png'
-    },
-    {
-      icon: <QqOutlined className="text-blue-600" />,
-      title: 'QQ交流群',
-      content: '123456789',
-      qr: '/images/qq-qr.png'
-    }
-  ]
 
-  const departments = [
-    {
-      name: '客户服务部',
-      phone: '400-888-8888 转 1',
-      email: 'service@xiaoyao.com',
-      description: '账户问题、使用咨询、技术支持'
-    },
-    {
-      name: '商务合作部',
-      phone: '400-888-8888 转 2',
-      email: 'business@xiaoyao.com',
-      description: '园区合作、政策对接、项目孵化'
-    },
-    {
-      name: '市场推广部',
-      phone: '400-888-8888 转 3',
-      email: 'marketing@xiaoyao.com',
-      description: '媒体合作、活动策划、品牌推广'
-    },
-    {
-      name: '技术支持部',
-      phone: '400-888-8888 转 4',
-      email: 'tech@xiaoyao.com',
-      description: '系统故障、功能建议、技术咨询'
-    }
-  ]
+  // 按类型分组联系信息
+  const getContactInfoByType = (type: string) => {
+    return contactInfos.filter(info => info.type === type && info.enabled)
+  }
+
+  // 获取基本联系信息（电话、邮箱、地址、工作时间）
+  const basicContactInfo = contactInfos.filter(info => 
+    ['phone', 'email', 'address', 'hours'].includes(info.type) && info.enabled
+  ).map(info => ({
+    icon: getIconByType(info.type),
+    title: info.title || '联系方式',
+    content: info.content,
+    description: info.description || ''
+  }))
+
+  // 获取部门联系信息
+  const departmentContacts = getContactInfoByType('department')
+  
+  // 获取社交媒体信息
+  const socialContacts = getContactInfoByType('social')
+  
+  // 获取位置相关信息
+  const locationInfo = getContactInfoByType('location')
+  const transportInfo = getContactInfoByType('transport')
+  const nearbyInfo = getContactInfoByType('nearby')
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+        <Spin size="large" />
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* 页面标题 */}
-        <div className="text-center mb-8">
-          <Title level={1}>联系我们</Title>
-          <Paragraph className="text-lg text-gray-600">
-            我们随时为您提供专业的服务支持
-          </Paragraph>
+    <div className="min-h-screen bg-gray-50 py-6">
+      <div className="max-w-5xl mx-auto px-4">
+        {/* 页面标题 - 更紧凑 */}
+        <div className="text-center mb-6">
+          <Title level={2} className="mb-2">联系我们</Title>
+          <Text className="text-gray-600">我们随时为您提供专业的服务支持</Text>
         </div>
 
-        <Row gutter={[24, 24]}>
-          {/* 联系方式 */}
-          <Col xs={24} lg={12}>
-            <Card title="联系方式" className="h-full">
-              <Row gutter={[16, 24]}>
-                {contactInfo.map((info, index) => (
-                  <Col xs={24} sm={12} key={index}>
-                    <div className="text-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                      <div className="text-3xl mb-3">{info.icon}</div>
-                      <Title level={5} className="mb-2">{info.title}</Title>
-                      <Text strong className="block mb-1">{info.content}</Text>
-                      <Text type="secondary" className="text-sm">{info.description}</Text>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-
-              <Divider />
-
-              {/* 社交联系方式 */}
-              <Title level={4} className="mb-4">社交媒体</Title>
-              <Row gutter={[16, 16]}>
-                {socialContacts.map((social, index) => (
-                  <Col xs={24} sm={12} key={index}>
-                    <div className="text-center p-4 border border-gray-200 rounded-lg">
-                      <div className="text-2xl mb-2">{social.icon}</div>
-                      <Text strong className="block">{social.title}</Text>
-                      <Text className="block">{social.content}</Text>
-                      <Button type="link" size="small">扫码添加</Button>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
+        <Row gutter={[16, 16]}>
+          {/* 主要联系信息 - 左侧 */}
+          <Col xs={24} lg={14}>
+            <Card title="联系方式" className="mb-4" bodyStyle={{ padding: '16px' }}>
+              {basicContactInfo.length > 0 ? (
+                <Row gutter={[12, 12]}>
+                  {basicContactInfo.map((info, index) => (
+                    <Col xs={12} sm={6} key={index}>
+                      <div className="text-center p-3 border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
+                        <div className="text-2xl mb-2">{info.icon}</div>
+                        <Text strong className="block text-sm mb-1">{info.content}</Text>
+                        <Text type="secondary" className="text-xs">{info.title}</Text>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <div className="text-center py-4">
+                  <Text type="secondary">暂无联系信息</Text>
+                </div>
+              )}
             </Card>
+
+            {/* 部门联系方式 - 合并到左侧 */}
+            {departmentContacts.length > 0 && (
+              <Card title="部门联系" bodyStyle={{ padding: '16px' }}>
+                <Row gutter={[12, 12]}>
+                  {departmentContacts.map((dept, index) => (
+                    <Col xs={24} sm={12} key={dept.id}>
+                      <div className="p-3 border border-gray-200 rounded-lg">
+                        <div className="flex items-center">
+                          <PhoneOutlined className="mr-2 text-blue-500" />
+                          <div>
+                            <Text strong className="block text-sm">{dept.title}</Text>
+                            <Text className="text-sm">{dept.content}</Text>
+                          </div>
+                        </div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              </Card>
+            )}
           </Col>
 
-          {/* 在线留言 */}
-          <Col xs={24} lg={12}>
-            <Card title="在线留言" className="h-full">
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleSubmit}
-              >
-                <Form.Item
-                  name="name"
-                  label="姓名"
-                  rules={[{ required: true, message: '请输入您的姓名' }]}
-                >
-                  <Input placeholder="请输入您的姓名" />
-                </Form.Item>
+          {/* 社交媒体和位置信息 - 右侧 */}
+          <Col xs={24} lg={10}>
+            {/* 社交媒体 */}
+            {socialContacts.length > 0 && (
+              <Card title="社交媒体" className="mb-4" bodyStyle={{ padding: '16px' }}>
+                <Row gutter={[8, 8]}>
+                  {socialContacts.map((social, index) => (
+                    <Col xs={12} key={social.id}>
+                      <div className="text-center p-3 border border-gray-200 rounded-lg">
+                        {social.qrCode ? (
+                          <div>
+                            <img 
+                              src={social.qrCode} 
+                              alt={`${social.title}二维码`}
+                              style={{ 
+                                width: 80, 
+                                height: 80, 
+                                margin: '0 auto',
+                                border: '1px solid #f0f0f0',
+                                borderRadius: 4,
+                                display: 'block'
+                              }}
+                              onError={(e) => {
+                                console.error('图片加载失败:', social.qrCode);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                            <Text className="text-xs block mt-1">{social.title}</Text>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-xl mb-1">
+                              {social.title.includes('微信') || social.title.includes('WeChat') ? 
+                                <WechatOutlined className="text-green-600" /> : 
+                                social.title.includes('QQ') ? 
+                                <QqOutlined className="text-blue-600" /> : 
+                                getIconByType(social.type)
+                              }
+                            </div>
+                            <Text className="text-xs block">{social.title}</Text>
+                            <Text className="text-xs">{social.content}</Text>
+                          </div>
+                        )}
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              </Card>
+            )}
 
-                <Form.Item
-                  name="phone"
-                  label="联系电话"
-                  rules={[
-                    { required: true, message: '请输入联系电话' },
-                    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
-                  ]}
-                >
-                  <Input placeholder="请输入您的联系电话" />
-                </Form.Item>
+            {/* 位置信息 */}
+            <Card title="公司位置" bodyStyle={{ padding: '16px' }}>
+              {/* 地址信息 */}
+              {locationInfo.length > 0 && (
+                <div className="mb-3">
+                  {locationInfo.map((location) => (
+                    <div key={location.id} className="mb-2">
+                      <div className="flex items-start">
+                        <EnvironmentOutlined className="mr-2 text-red-500 mt-1" />
+                        <div>
+                          <Text strong className="block text-sm">{location.title}</Text>
+                          <Text className="text-sm">{location.content}</Text>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-                <Form.Item
-                  name="email"
-                  label="邮箱地址"
-                  rules={[
-                    { type: 'email', message: '请输入正确的邮箱地址' }
-                  ]}
-                >
-                  <Input placeholder="请输入您的邮箱地址（可选）" />
-                </Form.Item>
-
-                <Form.Item
-                  name="subject"
-                  label="咨询主题"
-                  rules={[{ required: true, message: '请输入咨询主题' }]}
-                >
-                  <Input placeholder="请简要描述您的咨询主题" />
-                </Form.Item>
-
-                <Form.Item
-                  name="message"
-                  label="详细内容"
-                  rules={[{ required: true, message: '请输入详细内容' }]}
-                >
-                  <TextArea 
-                    rows={6} 
-                    placeholder="请详细描述您的问题或需求，我们会尽快回复您"
-                    showCount
-                    maxLength={500}
-                  />
-                </Form.Item>
-
-                <Form.Item>
-                  <Button 
-                    type="primary" 
-                    htmlType="submit" 
-                    icon={<SendOutlined />}
-                    size="large"
-                    block
-                  >
-                    发送消息
-                  </Button>
-                </Form.Item>
-              </Form>
-
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <Text type="secondary" className="text-sm">
-                  <strong>温馨提示：</strong>
-                  我们会在收到您的消息后24小时内回复。如需紧急处理，请直接拨打客服热线。
-                </Text>
-              </div>
+              {/* 交通指南 */}
+              {transportInfo.length > 0 && (
+                <div className="mb-3">
+                  <Text strong className="block text-sm mb-2">交通指南</Text>
+                  <div className="space-y-1">
+                    {transportInfo.map((transport) => (
+                      <div key={transport.id} className="text-sm">
+                        <Text><strong>{transport.title}：</strong>{transport.content}</Text>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* 周边设施 */}
+              {nearbyInfo.length > 0 && (
+                <div>
+                  <Text strong className="block text-sm mb-2">周边设施</Text>
+                  <div className="space-y-1">
+                    {nearbyInfo.map((nearby) => (
+                      <div key={nearby.id} className="text-sm">
+                        <Text>• {nearby.content}</Text>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* 显示提示信息，如果没有数据 */}
+              {locationInfo.length === 0 && transportInfo.length === 0 && nearbyInfo.length === 0 && (
+                <div className="text-center py-4">
+                  <Text type="secondary" className="text-sm">暂无位置信息</Text>
+                </div>
+              )}
             </Card>
           </Col>
         </Row>
-
-        {/* 部门联系方式 */}
-        <Card title="部门联系方式" className="mt-6">
-          <Row gutter={[24, 16]}>
-            {departments.map((dept, index) => (
-              <Col xs={24} sm={12} lg={6} key={index}>
-                <div className="p-4 border border-gray-200 rounded-lg h-full">
-                  <Title level={5} className="mb-3 text-center">{dept.name}</Title>
-                  <Space direction="vertical" size="small" className="w-full">
-                    <div className="flex items-center">
-                      <PhoneOutlined className="mr-2 text-blue-500" />
-                      <Text>{dept.phone}</Text>
-                    </div>
-                    <div className="flex items-center">
-                      <MailOutlined className="mr-2 text-green-500" />
-                      <Text>{dept.email}</Text>
-                    </div>
-                    <Text type="secondary" className="text-sm mt-2 block">
-                      {dept.description}
-                    </Text>
-                  </Space>
-                </div>
-              </Col>
-            ))}
-          </Row>
-        </Card>
-
-        {/* 地图位置 */}
-        <Card title="公司位置" className="mt-6">
-          <Row gutter={[24, 16]}>
-            <Col xs={24} lg={16}>
-              <div className="bg-gray-200 h-80 rounded-lg flex items-center justify-center">
-                <Text type="secondary">地图位置（此处可集成百度地图或高德地图）</Text>
-              </div>
-            </Col>
-            <Col xs={24} lg={8}>
-              <Space direction="vertical" size="large" className="w-full">
-                <div>
-                  <Title level={5}>交通指南</Title>
-                  <Space direction="vertical" size="small">
-                    <Text><strong>地铁：</strong>4号线中关村站A出口</Text>
-                    <Text><strong>公交：</strong>302、307、320路中关村站</Text>
-                    <Text><strong>自驾：</strong>中关村大街与北四环交叉口</Text>
-                  </Space>
-                </div>
-                <div>
-                  <Title level={5}>周边设施</Title>
-                  <Space direction="vertical" size="small">
-                    <Text>• 中关村创业大街</Text>
-                    <Text>• 清华大学</Text>
-                    <Text>• 北京大学</Text>
-                    <Text>• 中科院</Text>
-                  </Space>
-                </div>
-              </Space>
-            </Col>
-          </Row>
-        </Card>
       </div>
     </div>
   )

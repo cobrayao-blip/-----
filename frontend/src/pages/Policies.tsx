@@ -117,6 +117,7 @@ const Policies: React.FC = () => {
   const getPolicyTypeLabel = (type: string) => {
     const typeMap: { [key: string]: string } = {
       'TALENT': '人才政策',
+      'INVESTMENT': '投资政策',
       'STARTUP': '创业政策',
       'INNOVATION': '创新政策',
       'FUNDING': '资金政策',
@@ -171,11 +172,15 @@ const Policies: React.FC = () => {
                 onChange={setSelectedType}
               >
                 <Option value="TALENT">人才政策</Option>
+                <Option value="INVESTMENT">投资政策</Option>
                 <Option value="STARTUP">创业政策</Option>
                 <Option value="INNOVATION">创新政策</Option>
                 <Option value="FUNDING">资金政策</Option>
                 <Option value="TAX">税收政策</Option>
                 <Option value="HOUSING">住房政策</Option>
+                <Option value="EDUCATION">教育政策</Option>
+                <Option value="HEALTHCARE">医疗政策</Option>
+                <Option value="OTHER">其他</Option>
               </Select>
             </Col>
             <Col xs={12} sm={6} md={4}>
@@ -206,72 +211,25 @@ const Policies: React.FC = () => {
         {/* 政策列表 */}
         <Spin spinning={isLoading}>
           {currentPolicies.length > 0 ? (
-            <>
-              <Row gutter={[16, 16]}>
-                {currentPolicies.map((policy: Policy) => (
-                  <Col xs={24} sm={12} lg={8} key={policy.id}>
-                    <Card
-                      hoverable
-                      className="h-full"
-                      actions={[
-                        <Tooltip title="查看详情">
-                          <EyeOutlined 
-                            key="view" 
-                            onClick={() => handleViewPolicy(policy)}
-                          />
-                        </Tooltip>,
-                        <Tooltip title="收藏">
-                          <HeartOutlined key="favorite" />
-                        </Tooltip>,
-                        <Tooltip title="分享">
-                          <ShareAltOutlined key="share" />
-                        </Tooltip>,
-                      ]}
-                    >
-                      <div className="mb-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <Tag color="blue">
+            <Card>
+              <div className="space-y-4">
+                {currentPolicies.map((policy: Policy, index: number) => (
+                  <div 
+                    key={policy.id}
+                    className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
+                      index === currentPolicies.length - 1 ? 'border-b-0' : ''
+                    }`}
+                    onClick={() => handleViewPolicy(policy)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Tag color="blue" className="mb-0">
                             {getPolicyTypeLabel(policy.type)}
                           </Tag>
-                          <Tag color="green">
+                          <Tag color="green" className="mb-0">
                             {getPolicyLevelLabel(policy.level)}
                           </Tag>
-                        </div>
-                        
-                        <Title level={5} className="mb-3 line-clamp-2">
-                          {policy.title}
-                        </Title>
-                      </div>
-
-                      <Space direction="vertical" size="small" className="w-full">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <BankOutlined className="mr-1" />
-                          <span className="truncate">{policy.department}</span>
-                        </div>
-                        
-                        <div className="flex items-center text-sm text-gray-600">
-                          <CalendarOutlined className="mr-1" />
-                          <span>发布: {policy.publishDate}</span>
-                        </div>
-
-                        <div className="flex items-center text-sm text-gray-600">
-                          <FileTextOutlined className="mr-1" />
-                          <span>生效: {policy.effectiveDate}</span>
-                        </div>
-
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {policy.tags?.split(',').map((tag: string, index: number) => (
-                            <Tag key={index} className="mb-1">
-                              {tag.trim()}
-                            </Tag>
-                          ))}
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-gray-500 mt-3">
-                          <span className="flex items-center">
-                            <EyeOutlined className="mr-1" />
-                            {policy.viewCount || 0} 次浏览
-                          </span>
                           <span className={`px-2 py-1 rounded text-xs ${
                             policy.status === 'PUBLISHED' 
                               ? 'bg-green-100 text-green-600' 
@@ -280,20 +238,72 @@ const Policies: React.FC = () => {
                             {policy.status === 'PUBLISHED' ? '已发布' : '草稿'}
                           </span>
                         </div>
-                      </Space>
+                        
+                        <Title 
+                          level={4} 
+                          className="mb-2 text-blue-600 hover:text-blue-800 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleViewPolicy(policy)
+                          }}
+                        >
+                          {policy.title}
+                        </Title>
 
-                      <Button 
-                        type="primary" 
-                        block 
-                        className="mt-4"
-                        onClick={() => handleViewPolicy(policy)}
-                      >
-                        查看详情
-                      </Button>
-                    </Card>
-                  </Col>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                          <span className="flex items-center">
+                            <BankOutlined className="mr-1" />
+                            {policy.department}
+                          </span>
+                          <span className="flex items-center">
+                            <CalendarOutlined className="mr-1" />
+                            发布: {policy.publishDate}
+                          </span>
+                          <span className="flex items-center">
+                            <FileTextOutlined className="mr-1" />
+                            生效: {policy.effectiveDate}
+                          </span>
+                        </div>
+
+                        {policy.tags && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {policy.tags.split(',').map((tag: string, tagIndex: number) => (
+                              <Tag key={tagIndex}>
+                                {tag.trim()}
+                              </Tag>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-4 ml-4">
+                        <span className="flex items-center text-sm text-gray-500">
+                          <EyeOutlined className="mr-1" />
+                          {policy.viewCount || 0}
+                        </span>
+                        <div className="flex gap-2">
+                          <Tooltip title="收藏">
+                            <Button 
+                              type="text" 
+                              icon={<HeartOutlined />} 
+                              size="small"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </Tooltip>
+                          <Tooltip title="分享">
+                            <Button 
+                              type="text" 
+                              icon={<ShareAltOutlined />} 
+                              size="small"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </Tooltip>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </Row>
+              </div>
 
               {/* 分页 */}
               <div className="flex justify-center mt-8">
@@ -309,7 +319,7 @@ const Policies: React.FC = () => {
                   }
                 />
               </div>
-            </>
+            </Card>
           ) : (
             <Empty 
               description="暂无政策信息"

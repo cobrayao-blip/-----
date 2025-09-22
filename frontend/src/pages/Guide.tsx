@@ -1,5 +1,5 @@
-import React from 'react'
-import { Typography, Card, Steps, Collapse, Row, Col, Button, Space } from 'antd'
+import React, { useState, useEffect } from 'react'
+import { Typography, Card, Steps, Collapse, Row, Col, Button, Space, Spin } from 'antd'
 import { 
   UserOutlined, 
   SearchOutlined, 
@@ -13,8 +13,38 @@ import { useNavigate } from 'react-router-dom'
 const { Title, Paragraph, Text } = Typography
 const { Panel } = Collapse
 
+interface GuideItem {
+  id: string
+  category: string
+  title: string
+  content: string
+  steps?: string
+  order: number
+  enabled: boolean
+}
+
 const Guide: React.FC = () => {
   const navigate = useNavigate()
+  const [guides, setGuides] = useState<GuideItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchGuides()
+  }, [])
+
+  const fetchGuides = async () => {
+    try {
+      const response = await fetch('/api/content/guides')
+      const data = await response.json()
+      if (data.success) {
+        setGuides(data.data)
+      }
+    } catch (error) {
+      console.error('获取使用指南失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const steps = [
     {
@@ -39,52 +69,13 @@ const Guide: React.FC = () => {
     }
   ]
 
-  const guideContent = [
-    {
-      title: '新用户注册指南',
-      content: [
-        '1. 点击页面右上角"立即注册"按钮',
-        '2. 填写手机号码并获取验证码',
-        '3. 设置登录密码（8-20位，包含字母和数字）',
-        '4. 完善个人基本信息',
-        '5. 上传身份证明文件（可选）',
-        '6. 提交注册申请，等待审核'
-      ]
-    },
-    {
-      title: '园区服务使用指南',
-      content: [
-        '1. 登录后进入"园区服务"页面',
-        '2. 浏览各园区的详细信息和优惠政策',
-        '3. 根据行业类型和地理位置筛选合适园区',
-        '4. 点击"申请入驻"提交入驻申请',
-        '5. 上传企业相关资质文件',
-        '6. 等待园区方审核并安排实地考察'
-      ]
-    },
-    {
-      title: '政策咨询指南',
-      content: [
-        '1. 访问"政策咨询"页面查看最新政策',
-        '2. 使用搜索功能查找特定政策类型',
-        '3. 点击政策标题查看详细内容',
-        '4. 如有疑问可点击"在线咨询"',
-        '5. 填写咨询表单并提交',
-        '6. 专业顾问将在24小时内回复'
-      ]
-    },
-    {
-      title: '项目申报指南',
-      content: [
-        '1. 进入"项目孵化"页面浏览项目信息',
-        '2. 选择符合条件的项目类型',
-        '3. 仔细阅读项目申报要求',
-        '4. 准备相关申报材料',
-        '5. 在线填写申报表单',
-        '6. 上传支撑材料并提交申请'
-      ]
-    }
-  ]
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Spin size="large" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -122,14 +113,24 @@ const Guide: React.FC = () => {
           <Col xs={24} lg={16}>
             <Card title="详细使用指南">
               <Collapse accordion>
-                {guideContent.map((guide, index) => (
-                  <Panel header={guide.title} key={index}>
-                    <div className="space-y-2">
-                      {guide.content.map((step, stepIndex) => (
-                        <Paragraph key={stepIndex} className="mb-2">
-                          {step}
-                        </Paragraph>
-                      ))}
+                {guides.map((guide) => (
+                  <Panel header={guide.title} key={guide.id}>
+                    <div className="space-y-4">
+                      <Paragraph className="mb-4">
+                        {guide.content}
+                      </Paragraph>
+                      {guide.steps && (
+                        <div>
+                          <Text strong>操作步骤：</Text>
+                          <div className="mt-2 space-y-2">
+                            {JSON.parse(guide.steps).map((step: string, stepIndex: number) => (
+                              <Paragraph key={stepIndex} className="mb-2 ml-4">
+                                {stepIndex + 1}. {step}
+                              </Paragraph>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </Panel>
                 ))}

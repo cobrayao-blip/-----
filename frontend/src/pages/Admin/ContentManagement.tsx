@@ -32,7 +32,8 @@ import {
   BankOutlined,
   FileTextOutlined,
   ProjectOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  StarOutlined
 } from '@ant-design/icons'
 import { 
   useGetParksQuery,
@@ -47,10 +48,16 @@ import {
   useCreateProjectMutation,
   useUpdateProjectMutation,
   useDeleteProjectMutation,
+  useGetJobsQuery,
+  useCreateJobMutation,
+  useUpdateJobMutation,
+  useDeleteJobMutation,
   type Park,
   type Policy,
-  type Project
+  type Project,
+  type Job
 } from '../../store/api/adminApi'
+import TestimonialManagement from './TestimonialManagement'
 
 const { Title } = Typography
 const { Search } = Input
@@ -72,6 +79,7 @@ const ContentManagement: React.FC = () => {
   const [selectedPark, setSelectedPark] = useState<Park | null>(null)
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [modalType, setModalType] = useState<'view' | 'edit' | 'create'>('view')
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'parks')
@@ -92,13 +100,33 @@ const ContentManagement: React.FC = () => {
   const { data: parksData, isLoading: parksLoading, refetch: refetchParks, error: parksError } = useGetParksQuery({})
   const { data: policiesData, isLoading: policiesLoading, refetch: refetchPolicies, error: policiesError } = useGetPoliciesQuery({})
   const { data: projectsData, isLoading: projectsLoading, refetch: refetchProjects, error: projectsError } = useGetProjectsQuery({})
+  const { data: jobsData, isLoading: jobsLoading, refetch: refetchJobs, error: jobsError } = useGetJobsQuery({})
 
   // 调试信息
   useEffect(() => {
     console.log('Parks Data:', parksData, 'Loading:', parksLoading, 'Error:', parksError)
     console.log('Policies Data:', policiesData, 'Loading:', policiesLoading, 'Error:', policiesError)
     console.log('Projects Data:', projectsData, 'Loading:', projectsLoading, 'Error:', projectsError)
-  }, [parksData, policiesData, projectsData, parksLoading, policiesLoading, projectsLoading, parksError, policiesError, projectsError])
+    console.log('Jobs Data:', jobsData, 'Loading:', jobsLoading, 'Error:', jobsError)
+    
+    // 检查认证状态
+    const token = localStorage.getItem('token')
+    const user = localStorage.getItem('user')
+    console.log('当前Token:', token ? '存在' : '不存在')
+    console.log('当前用户:', user ? JSON.parse(user) : '未登录')
+    
+    // 检查API错误并提供友好提示
+    if (parksError || policiesError || projectsError || jobsError) {
+      const errorMessage = parksError?.data?.message || policiesError?.data?.message || projectsError?.data?.message || jobsError?.data?.message
+      if (errorMessage && errorMessage.includes('认证') || errorMessage === 'API endpoint not found') {
+        message.error('认证失败，请重新登录管理员账户', 5)
+        console.log('🔑 解决方案：')
+        console.log('1. 访问 http://localhost:3000/admin-login')
+        console.log('2. 点击"使用管理员账户登录"按钮')
+        console.log('3. 或手动输入: admin@xiaoyao.com / admin123456')
+      }
+    }
+  }, [parksData, policiesData, projectsData, jobsData, parksLoading, policiesLoading, projectsLoading, jobsLoading, parksError, policiesError, projectsError, jobsError])
 
   // 处理标签页切换
   const handleTabChange = (key: string) => {
@@ -109,7 +137,7 @@ const ContentManagement: React.FC = () => {
   // 监听URL参数变化，保持标签页状态
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab')
-    if (tabFromUrl && ['parks', 'policies', 'projects', 'about'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['parks', 'policies', 'projects', 'jobs', 'about', 'testimonials'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl)
     }
   }, [searchParams])
@@ -125,6 +153,10 @@ const ContentManagement: React.FC = () => {
   const [createProject] = useCreateProjectMutation()
   const [updateProject] = useUpdateProjectMutation()
   const [deleteProject] = useDeleteProjectMutation()
+
+  const [createJob] = useCreateJobMutation()
+  const [updateJob] = useUpdateJobMutation()
+  const [deleteJob] = useDeleteJobMutation()
 
   // 模拟关于我们数据
   useEffect(() => {
@@ -239,6 +271,47 @@ const ContentManagement: React.FC = () => {
     return levelMap[level] || level
   }
 
+  const getProjectCategoryLabel = (category: string) => {
+    const categoryMap: { [key: string]: string } = {
+      'TECH': '科技创新',
+      'STARTUP': '创业扶持',
+      'TALENT': '人才引进',
+      'RESEARCH': '科研项目',
+      'ENERGY': '新能源',
+      'AGRICULTURE': '智慧农业',
+      'FINTECH': '金融科技',
+      'ENVIRONMENT': '环保技术',
+      'EDUCATION': '在线教育',
+      'OTHER': '其他'
+    }
+    return categoryMap[category] || category
+  }
+
+  const getJobTypeLabel = (type: string) => {
+    const typeMap: { [key: string]: string } = {
+      'FULL_TIME': '全职',
+      'PART_TIME': '兼职',
+      'CONTRACT': '合同工',
+      'INTERNSHIP': '实习',
+      'REMOTE': '远程工作'
+    }
+    return typeMap[type] || type
+  }
+
+  const getJobLevelLabel = (level: string) => {
+    const levelMap: { [key: string]: string } = {
+      'JUNIOR': '初级',
+      'MID': '中级',
+      'SENIOR': '高级',
+      'LEAD': '主管',
+      'MANAGER': '经理',
+      'DIRECTOR': '总监',
+      'VP': '副总裁',
+      'C_LEVEL': 'C级高管'
+    }
+    return levelMap[level] || level
+  }
+
   const handleViewPark = (park: Park) => {
     setSelectedPark(park)
     setModalType('view')
@@ -279,6 +352,11 @@ const ContentManagement: React.FC = () => {
     setSelectedPolicy(policy)
     setModalType('edit')
     
+    // 调试信息
+    console.log('政策标题:', policy.title)
+    console.log('政策内容长度:', policy.content ? policy.content.length : 0)
+    console.log('政策内容预览:', policy.content ? policy.content.substring(0, 100) + '...' : '无内容')
+    
     // 处理日期字段转换
     const formValues = {
       ...policy,
@@ -288,6 +366,14 @@ const ContentManagement: React.FC = () => {
     }
     
     form.setFieldsValue(formValues)
+    
+    // 确保content字段被正确设置
+    setTimeout(() => {
+      if (policy.content) {
+        form.setFieldValue('content', policy.content)
+        console.log('✅ 已设置content字段，长度:', policy.content.length)
+      }
+    }, 50)
     
     // 处理附件数据 - 将JSON字符串转换为Upload组件的fileList格式
     if (policy.attachments) {
@@ -371,6 +457,44 @@ const ContentManagement: React.FC = () => {
       await deleteProject(projectId).unwrap()
       message.success('项目删除成功')
       refetchProjects()
+    } catch (error) {
+      message.error('删除失败')
+    }
+  }
+
+  // 职位相关处理函数
+  const handleViewJob = (job: Job) => {
+    setSelectedJob(job)
+    setModalType('view')
+    setIsModalVisible(true)
+  }
+
+  const handleEditJob = (job: Job) => {
+    setSelectedJob(job)
+    setModalType('edit')
+    
+    // 处理日期字段转换
+    const formValues = {
+      ...job,
+      validUntil: job.validUntil ? dayjs(job.validUntil) : null
+    }
+    
+    form.setFieldsValue(formValues)
+    setIsModalVisible(true)
+  }
+
+  const handleCreateJob = () => {
+    setSelectedJob(null)
+    setModalType('create')
+    form.resetFields()
+    setIsModalVisible(true)
+  }
+
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      await deleteJob(jobId).unwrap()
+      message.success('职位删除成功')
+      refetchJobs()
     } catch (error) {
       message.error('删除失败')
     }
@@ -460,6 +584,10 @@ const ContentManagement: React.FC = () => {
         if (processedValues.funding) {
           processedValues.funding = processedValues.funding * 10000
         }
+      } else if (activeTab === 'jobs') {
+        if (processedValues.validUntil) {
+          processedValues.validUntil = processedValues.validUntil.toISOString()
+        }
       }
       
       if (activeTab === 'parks') {
@@ -491,6 +619,16 @@ const ContentManagement: React.FC = () => {
           await updateProject({ id: selectedProject.id, ...processedValues }).unwrap()
           message.success('项目更新成功')
           refetchProjects()
+        }
+      } else if (activeTab === 'jobs') {
+        if (modalType === 'create') {
+          await createJob(processedValues).unwrap()
+          message.success('职位创建成功')
+          refetchJobs()
+        } else if (modalType === 'edit' && selectedJob) {
+          await updateJob({ id: selectedJob.id, ...processedValues }).unwrap()
+          message.success('职位更新成功')
+          refetchJobs()
         }
       }
       
@@ -651,7 +789,8 @@ const ContentManagement: React.FC = () => {
     {
       title: '分类',
       dataIndex: 'category',
-      key: 'category'
+      key: 'category',
+      render: (category: string) => getProjectCategoryLabel(category)
     },
     {
       title: '资助金额（万元）',
@@ -777,6 +916,101 @@ const ContentManagement: React.FC = () => {
     }
   ]
 
+  const getJobColumns = () => [
+    {
+      title: '职位名称',
+      dataIndex: 'title',
+      key: 'title'
+    },
+    {
+      title: '公司',
+      dataIndex: 'company',
+      key: 'company'
+    },
+    {
+      title: '工作类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type: string) => getJobTypeLabel(type)
+    },
+    {
+      title: '级别',
+      dataIndex: 'level',
+      key: 'level',
+      render: (level: string) => getJobLevelLabel(level)
+    },
+    {
+      title: '地点',
+      dataIndex: 'location',
+      key: 'location'
+    },
+    {
+      title: '薪资',
+      dataIndex: 'salary',
+      key: 'salary'
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const statusMap = {
+          'PUBLISHED': { color: 'green', text: '已发布' },
+          'DRAFT': { color: 'orange', text: '草稿' },
+          'ARCHIVED': { color: 'red', text: '已归档' }
+        }
+        const statusInfo = statusMap[status as keyof typeof statusMap] || { color: 'default', text: status }
+        return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+      }
+    },
+    {
+      title: '发布时间',
+      dataIndex: 'publishDate',
+      key: 'publishDate',
+      render: (date: string) => date ? new Date(date).toLocaleDateString() : '-'
+    },
+    {
+      title: '浏览量',
+      dataIndex: 'viewCount',
+      key: 'viewCount'
+    },
+    {
+      title: '申请数',
+      dataIndex: 'applicationCount',
+      key: 'applicationCount'
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (record: Job) => (
+        <Space>
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewJob(record)}
+          />
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => handleEditJob(record)}
+          />
+          <Popconfirm
+            title="确定删除这个职位吗？"
+            onConfirm={() => handleDeleteJob(record.id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ]
+
   const renderFormFields = () => {
     if (activeTab === 'parks') {
       return (
@@ -836,9 +1070,12 @@ const ContentManagement: React.FC = () => {
           >
             <Select placeholder="请选择园区类型">
               <Option value="HIGH_TECH">高新技术园区</Option>
-              <Option value="ECONOMIC">经济开发区</Option>
               <Option value="INDUSTRIAL">工业园区</Option>
-              <Option value="STARTUP">创业园区</Option>
+              <Option value="ECONOMIC">经济开发区</Option>
+              <Option value="SCIENCE">科技园区</Option>
+              <Option value="CULTURAL">文化创意园区</Option>
+              <Option value="LOGISTICS">物流园区</Option>
+              <Option value="AGRICULTURAL">农业园区</Option>
               <Option value="OTHER">其他</Option>
             </Select>
           </Form.Item>
@@ -852,7 +1089,7 @@ const ContentManagement: React.FC = () => {
               <Option value="NATIONAL">国家级</Option>
               <Option value="PROVINCIAL">省级</Option>
               <Option value="MUNICIPAL">市级</Option>
-              <Option value="COUNTY">县级</Option>
+              <Option value="DISTRICT">区级</Option>
             </Select>
           </Form.Item>
 
@@ -915,19 +1152,18 @@ const ContentManagement: React.FC = () => {
             name="content"
             label="政策内容"
             rules={[{ required: true, message: '请输入政策内容' }]}
+            extra={
+              <div className="text-gray-500 text-sm">
+                💡 <strong>格式提示：</strong>
+                段落之间用空行分隔，每段会自动首行缩进 • 使用 **粗体** 表示重点内容 • 使用数字或符号开头可创建列表 • 内容将按原格式在详情页显示
+              </div>
+            }
           >
             <TextArea 
               rows={12} 
               placeholder="请输入政策内容&#10;&#10;格式提示：&#10;• 段落之间请用空行分隔&#10;• 每段开头会自动缩进&#10;• 支持换行符显示&#10;• 可以使用标题、列表等格式"
               style={{ fontFamily: 'monospace', fontSize: '13px' }}
             />
-            <div className="text-gray-500 text-sm mt-1">
-              💡 <strong>格式提示：</strong>
-              <br />• 段落之间用空行分隔，每段会自动首行缩进
-              <br />• 使用 **粗体** 表示重点内容
-              <br />• 使用数字或符号开头可创建列表
-              <br />• 内容将按原格式在详情页显示
-            </div>
           </Form.Item>
 
           <Form.Item
@@ -955,7 +1191,7 @@ const ContentManagement: React.FC = () => {
               <Option value="NATIONAL">国家级</Option>
               <Option value="PROVINCIAL">省级</Option>
               <Option value="MUNICIPAL">市级</Option>
-              <Option value="COUNTY">县级</Option>
+              <Option value="DISTRICT">区级</Option>
             </Select>
           </Form.Item>
 
@@ -1095,7 +1331,7 @@ const ContentManagement: React.FC = () => {
             label="项目描述"
             rules={[{ required: true, message: '请输入项目描述' }]}
           >
-            <TextArea rows={4} placeholder="请输入项目描述" />
+            <TextArea rows={20} placeholder="请输入项目描述" />
           </Form.Item>
 
           <Form.Item
@@ -1173,6 +1409,152 @@ const ContentManagement: React.FC = () => {
             label="联系邮箱"
           >
             <Input placeholder="请输入联系邮箱" />
+          </Form.Item>
+
+          <Form.Item
+            name="status"
+            label="状态"
+            rules={[{ required: true, message: '请选择状态' }]}
+          >
+            <Select placeholder="请选择状态">
+              <Option value="PUBLISHED">已发布</Option>
+              <Option value="DRAFT">草稿</Option>
+              <Option value="ARCHIVED">已归档</Option>
+            </Select>
+          </Form.Item>
+        </>
+      )
+    } else if (activeTab === 'jobs') {
+      return (
+        <>
+          <Form.Item
+            name="title"
+            label="职位名称"
+            rules={[{ required: true, message: '请输入职位名称' }]}
+          >
+            <Input placeholder="请输入职位名称" />
+          </Form.Item>
+
+          <Form.Item
+            name="company"
+            label="公司名称"
+            rules={[{ required: true, message: '请输入公司名称' }]}
+          >
+            <Input placeholder="请输入公司名称" />
+          </Form.Item>
+
+          <Form.Item
+            name="description"
+            label="职位描述"
+            rules={[{ required: true, message: '请输入职位描述' }]}
+          >
+            <TextArea rows={6} placeholder="请输入职位描述" />
+          </Form.Item>
+
+          <Form.Item
+            name="type"
+            label="工作类型"
+            rules={[{ required: true, message: '请选择工作类型' }]}
+          >
+            <Select placeholder="请选择工作类型">
+              <Option value="全职">全职</Option>
+              <Option value="兼职">兼职</Option>
+              <Option value="实习">实习</Option>
+              <Option value="合同工">合同工</Option>
+              <Option value="远程">远程</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="level"
+            label="职位级别"
+            rules={[{ required: true, message: '请输入职位级别' }]}
+          >
+            <Input placeholder="请输入职位级别，如：初级、中级、高级、专家级" />
+          </Form.Item>
+
+          <Form.Item
+            name="department"
+            label="部门"
+          >
+            <Input placeholder="请输入部门名称" />
+          </Form.Item>
+
+          <Form.Item
+            name="location"
+            label="工作地点"
+            rules={[{ required: true, message: '请输入工作地点' }]}
+          >
+            <Input placeholder="请输入工作地点" />
+          </Form.Item>
+
+          <Form.Item
+            name="salary"
+            label="薪资范围"
+          >
+            <Input placeholder="请输入薪资范围，如：8K-15K、面议" />
+          </Form.Item>
+
+          <Form.Item
+            name="benefits"
+            label="福利待遇"
+          >
+            <TextArea rows={3} placeholder="请输入福利待遇" />
+          </Form.Item>
+
+          <Form.Item
+            name="requirements"
+            label="任职要求"
+          >
+            <TextArea rows={4} placeholder="请输入任职要求" />
+          </Form.Item>
+
+          <Form.Item
+            name="companySize"
+            label="公司规模"
+          >
+            <Select placeholder="请选择公司规模">
+              <Option value="1-20人">1-20人</Option>
+              <Option value="21-100人">21-100人</Option>
+              <Option value="101-500人">101-500人</Option>
+              <Option value="501-1000人">501-1000人</Option>
+              <Option value="1000人以上">1000人以上</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="industry"
+            label="所属行业"
+          >
+            <Select placeholder="请选择所属行业">
+              <Option value="TECH">科技</Option>
+              <Option value="FINANCE">金融</Option>
+              <Option value="EDUCATION">教育</Option>
+              <Option value="HEALTHCARE">医疗</Option>
+              <Option value="MANUFACTURING">制造业</Option>
+              <Option value="RETAIL">零售</Option>
+              <Option value="CONSULTING">咨询</Option>
+              <Option value="MEDIA">媒体</Option>
+              <Option value="OTHER">其他</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="validUntil"
+            label="有效期至"
+          >
+            <DatePicker 
+              placeholder="请选择有效期" 
+              style={{ width: '100%' }}
+              format="YYYY-MM-DD"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="contact"
+            label="联系方式"
+          >
+            <Input placeholder="请输入联系方式" />
           </Form.Item>
 
           <Form.Item
@@ -1346,6 +1728,49 @@ const ContentManagement: React.FC = () => {
           <p><strong>创建时间：</strong>{new Date(selectedProject.createdAt).toLocaleString()}</p>
         </div>
       )
+    } else if (activeTab === 'jobs' && selectedJob) {
+      return (
+        <div>
+          <p><strong>职位名称：</strong>{selectedJob.title}</p>
+          <p><strong>公司名称：</strong>{selectedJob.company}</p>
+          <div className="mb-3">
+            <strong>职位描述：</strong>
+            <div className="mt-1 p-3 bg-gray-50 rounded" style={{ whiteSpace: 'pre-wrap' }}>
+              {selectedJob.description}
+            </div>
+          </div>
+          <p><strong>工作类型：</strong>{selectedJob.type}</p>
+          <p><strong>职位级别：</strong>{selectedJob.level}</p>
+          <p><strong>部门：</strong>{selectedJob.department || '未设置'}</p>
+          <p><strong>工作地点：</strong>{selectedJob.location}</p>
+          <p><strong>薪资范围：</strong>{selectedJob.salary || '未设置'}</p>
+          {selectedJob.benefits && (
+            <div className="mb-3">
+              <strong>福利待遇：</strong>
+              <div className="mt-1 p-2 bg-gray-50 rounded text-sm" style={{ whiteSpace: 'pre-wrap' }}>
+                {selectedJob.benefits}
+              </div>
+            </div>
+          )}
+          {selectedJob.requirements && (
+            <div className="mb-3">
+              <strong>任职要求：</strong>
+              <div className="mt-1 p-2 bg-gray-50 rounded text-sm" style={{ whiteSpace: 'pre-wrap' }}>
+                {selectedJob.requirements}
+              </div>
+            </div>
+          )}
+          <p><strong>公司规模：</strong>{selectedJob.companySize || '未设置'}</p>
+          <p><strong>所属行业：</strong>{selectedJob.industry || '未设置'}</p>
+          <p><strong>发布时间：</strong>{selectedJob.publishDate ? new Date(selectedJob.publishDate).toLocaleDateString() : '未设置'}</p>
+          <p><strong>有效期至：</strong>{selectedJob.validUntil ? new Date(selectedJob.validUntil).toLocaleDateString() : '未设置'}</p>
+          <p><strong>联系方式：</strong>{selectedJob.contact || '未设置'}</p>
+          <p><strong>浏览量：</strong>{selectedJob.viewCount || 0}</p>
+          <p><strong>申请数：</strong>{selectedJob.applicationCount || 0}</p>
+          <p><strong>状态：</strong>{getStatusLabel(selectedJob.status)}</p>
+          <p><strong>创建时间：</strong>{new Date(selectedJob.createdAt || new Date()).toLocaleString()}</p>
+        </div>
+      )
     }
     return null
   }
@@ -1454,6 +1879,40 @@ const ContentManagement: React.FC = () => {
       )
     },
     {
+      key: 'jobs',
+      label: (
+        <Space>
+          <ProjectOutlined />
+          职位管理
+        </Space>
+      ),
+      children: (
+        <div>
+          <div className="mb-4">
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={handleCreateJob}
+            >
+              新增职位
+            </Button>
+          </div>
+          <Spin spinning={jobsLoading}>
+            <Table
+              columns={getJobColumns()}
+              dataSource={jobsData?.jobs || []}
+              rowKey="id"
+              pagination={{
+                current: 1,
+                pageSize: 10,
+                total: jobsData?.total || 0
+              }}
+            />
+          </Spin>
+        </div>
+      )
+    },
+    {
       key: 'about',
       label: (
         <Space>
@@ -1484,6 +1943,16 @@ const ContentManagement: React.FC = () => {
           />
         </div>
       )
+    },
+    {
+      key: 'testimonials',
+      label: (
+        <Space>
+          <StarOutlined />
+          评价管理
+        </Space>
+      ),
+      children: <TestimonialManagement />
     }
   ]
 

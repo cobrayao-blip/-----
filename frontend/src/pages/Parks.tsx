@@ -128,10 +128,14 @@ const Parks: React.FC = () => {
 
   const getTypeLabel = (type: string) => {
     const typeMap: Record<string, string> = {
+      'HIGH_TECH': '高新技术园区',
       'INDUSTRIAL': '工业园区',
-      'TECH': '科技园区',
       'ECONOMIC': '经济开发区',
-      'HIGH_TECH': '高新技术开发区',
+      'SCIENCE': '科技园区',
+      'CULTURAL': '文化创意园区',
+      'LOGISTICS': '物流园区',
+      'AGRICULTURAL': '农业园区',
+      'TECH': '科技园区',
       'BONDED': '保税区',
       'OTHER': '其他'
     }
@@ -143,6 +147,7 @@ const Parks: React.FC = () => {
       'NATIONAL': '国家级',
       'PROVINCIAL': '省级',
       'MUNICIPAL': '市级',
+      'DISTRICT': '区级',
       'COUNTY': '县级'
     }
     return levelMap[level] || level

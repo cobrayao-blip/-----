@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,308 +7,289 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 用户表
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  phone     String?
-  role      String   @default("USER") // USER, VIP, ADMIN, SUPER_ADMIN
-  status    String   @default("ACTIVE") // PENDING, ACTIVE, SUSPENDED, REJECTED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // 关联关系
-  profile            UserProfile?
-  resume             Resume?
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  password            String
+  name                String
+  phone               String?
+  role                String               @default("USER")
+  status              String               @default("ACTIVE")
+  mustChangePassword  Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  jobApplications     JobApplication[]
   projectApplications ProjectApplication[]
-  jobApplications    JobApplication[]
+  resume              Resume?
+  profile             UserProfile?
 
   @@map("users")
 }
 
-// 用户详细信息表
 model UserProfile {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // 基本信息
-  avatar      String?
-  gender      String? // MALE, FEMALE, OTHER
-  birthDate   DateTime?
-  nationality String?
-  idCard      String?
-  address     String?
-
-  // 教育背景 - 简化为字符串字段
-  education       String? // 存储教育经历JSON字符串
-  
-  // 职业信息
-  workExperience  String? // 存储工作经历JSON字符串
-  researchField   String?
-  achievements    String? // 研究成果JSON字符串
-
-  // 联系方式
-  wechat    String?
-  qq        String?
-  linkedin  String?
-  website   String?
-
-  // 其他信息
-  bio       String?
-  skills    String? // 技能标签，逗号分隔
-  interests String? // 兴趣爱好，逗号分隔
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  avatar         String?
+  gender         String?
+  birthDate      DateTime?
+  nationality    String?
+  idCard         String?
+  address        String?
+  education      String?
+  workExperience String?
+  researchField  String?
+  achievements   String?
+  wechat         String?
+  qq             String?
+  linkedin       String?
+  website        String?
+  bio            String?
+  skills         String?
+  interests      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
 }
 
-// 用户简历表
 model Resume {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // 基本信息
-  title       String?  // 简历标题
-  basicInfo   String?  // JSON格式存储基本信息
-  objective   String?  // 求职意向
-  summary     String?  // 个人总结
-
-  // 教育经历
-  education   String?  // JSON格式存储教育经历数组
-
-  // 工作经历
-  experience  String?  // JSON格式存储工作经历数组
-
-  // 项目经历
-  projects    String?  // JSON格式存储项目经历数组
-
-  // 技能证书
-  skills      String?  // JSON格式存储技能数组
-  certificates String? // JSON格式存储证书数组
-
-  // 其他信息
-  languages   String?  // JSON格式存储语言能力
-  hobbies     String?  // 兴趣爱好
-  awards      String?  // JSON格式存储获奖经历
-
-  // 附件文件
-  attachments String?  // JSON格式存储附件文件信息
-
-  // 状态
-  isPublic    Boolean  @default(false) // 是否公开
-  isComplete  Boolean  @default(false) // 是否完整
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  title        String?
+  objective    String?
+  summary      String?
+  education    String?
+  experience   String?
+  projects     String?
+  skills       String?
+  certificates String?
+  languages    String?
+  hobbies      String?
+  awards       String?
+  attachments  String?
+  isPublic     Boolean  @default(false)
+  isComplete   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  basicInfo    String?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("resumes")
 }
 
-
-
-// 园区表
 model Park {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  type        String   // INDUSTRIAL, TECH, ECONOMIC, HIGH_TECH, BONDED, OTHER
-  level       String   // NATIONAL, PROVINCIAL, MUNICIPAL, COUNTY
-  
-  // 位置信息
-  province    String
-  city        String
-  district    String?
-  address     String?
-  latitude    Float?
-  longitude   Float?
-  
-  // 园区信息
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  type            String
+  level           String
+  province        String
+  city            String
+  district        String?
+  address         String?
+  latitude        Float?
+  longitude       Float?
   establishedYear Int?
-  area        Float?   // 面积(平方公里)
-  industries  String?  // 主导产业，逗号分隔
-  policies    String?  // 优惠政策，JSON字符串
-  contact     String?  // 联系方式，JSON字符串
-  images      String?  // 图片数组，JSON字符串
-  
-  // 状态
-  status      String   @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  area            Float?
+  industries      String?
+  policies        String?
+  contact         String?
+  images          String?
+  status          String   @default("PUBLISHED")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("parks")
 }
 
-// 政策表
 model Policy {
-  id          String   @id @default(cuid())
-  title       String
-  content     String
-  summary     String?
-  type        String   // TALENT, INVESTMENT, STARTUP, TAX, HOUSING, EDUCATION, OTHER
-  level       String   // NATIONAL, PROVINCIAL, MUNICIPAL, COUNTY
-  
-  // 发布信息
-  publishDate DateTime @default(now())
+  id            String    @id @default(cuid())
+  title         String
+  content       String
+  summary       String?
+  type          String
+  level         String
+  publishDate   DateTime  @default(now())
   effectiveDate DateTime?
-  expiryDate  DateTime?
-  
-  // 元数据
-  tags        String?     // 标签，逗号分隔
-  keywords    String?     // 关键词，逗号分隔
-  department  String?     // 发布部门
-  attachments String?     // 附件数组，JSON字符串
-  
-  // 统计信息
-  viewCount   Int      @default(0)
-  
-  // 状态
-  status      String   @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  expiryDate    DateTime?
+  tags          String?
+  keywords      String?
+  department    String?
+  attachments   String?
+  viewCount     Int       @default(0)
+  status        String    @default("PUBLISHED")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@map("policies")
 }
 
-// 创业项目表
 model StartupProject {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  category    String
-  
-  // 项目信息
-  funding     Float?   // 资助金额
-  duration    Int?     // 项目周期(月)
-  requirements String? // 申报要求，JSON字符串
-  benefits    String?  // 项目优势，JSON字符串
-  
-  // 申报时间
+  id               String               @id @default(cuid())
+  title            String
+  description      String
+  category         String
+  funding          Float?
+  duration         Int?
+  requirements     String?
+  benefits         String?
   applicationStart DateTime?
   applicationEnd   DateTime?
-  
-  // 联系信息
-  contactPerson String?
-  contactPhone  String?
-  contactEmail  String?
-  
-  // 统计信息
-  viewCount     Int      @default(0)
-  applicationCount Int   @default(0)
-  
-  // 状态
-  status        String   @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // 关联关系
-  applications  ProjectApplication[]
+  contactPerson    String?
+  contactPhone     String?
+  contactEmail     String?
+  viewCount        Int                  @default(0)
+  applicationCount Int                  @default(0)
+  status           String               @default("PUBLISHED")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  applications     ProjectApplication[]
 
   @@map("startup_projects")
 }
 
-// 工作机会表
 model JobOpportunity {
-  id          String   @id @default(cuid())
-  title       String
-  company     String
-  description String
-  
-  // 职位信息
-  type        String   // FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, REMOTE
-  level       String   // ENTRY, JUNIOR, MID, SENIOR, LEAD, MANAGER, DIRECTOR, EXECUTIVE
-  department  String?
-  location    String
-  salary      String?
-  benefits    String?  // 福利待遇，JSON字符串
-  requirements String? // 任职要求，JSON字符串
-  
-  // 公司信息
-  companySize String?
-  industry    String?
-  
-  // 发布信息
-  publishDate DateTime @default(now())
-  validUntil  DateTime?
-  contact     String?  // 联系方式，JSON字符串
-  
-  // 统计信息
-  viewCount   Int      @default(0)
-  applicationCount Int @default(0)
-  
-  // 状态
-  status      String   @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // 关联关系
-  applications JobApplication[]
+  id               String           @id @default(cuid())
+  title            String
+  company          String
+  description      String
+  type             String
+  level            String
+  department       String?
+  location         String
+  salary           String?
+  benefits         String?
+  requirements     String?
+  companySize      String?
+  industry         String?
+  publishDate      DateTime         @default(now())
+  validUntil       DateTime?
+  contact          String?
+  viewCount        Int              @default(0)
+  applicationCount Int              @default(0)
+  status           String           @default("PUBLISHED")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  applications     JobApplication[]
 
   @@map("job_opportunities")
 }
 
-// 项目申报表
 model ProjectApplication {
-  id        String @id @default(cuid())
-  userId    String
-  projectId String
-  
-  // 关联关系
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project StartupProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  // 申请信息
-  resumeUrl       String?  // 简历文件
-  businessPlanUrl String?  // 创业计划书
-  additionalDocs  String?  // 其他文档，JSON字符串
-  message         String?
-  
-  // 审核信息
-  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED, WITHDRAWN
-  reviewNote String?
-  reviewedAt DateTime?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String         @id @default(cuid())
+  userId             String
+  projectId          String
+  personalInfo       String?
+  projectInfo        String?
+  resumeUrl          String?
+  businessPlanUrl    String?
+  financialReportUrl String?
+  otherDocsUrl       String?
+  message            String?
+  status             String         @default("PENDING")
+  reviewNote         String?
+  reviewedAt         DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  project            StartupProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, projectId])
   @@map("project_applications")
 }
 
-// 职位申请表
 model JobApplication {
-  id    String @id @default(cuid())
-  userId String
-  jobId String
-  
-  // 关联关系
-  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job  JobOpportunity @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  
-  // 申请信息
+  id             String         @id @default(cuid())
+  userId         String
+  jobId          String
   coverLetter    String?
-  resumeUrl      String?  // 简历文件
+  resumeUrl      String?
+  resumeData     String?
   expectedSalary String?
   availableDate  DateTime?
-  additionalDocs String?  // 其他文档，JSON字符串
-  
-  // 审核信息
-  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED, WITHDRAWN
-  reviewNote String?
-  reviewedAt DateTime?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  additionalDocs String?
+  status         String         @default("PENDING")
+  reviewNote     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  job            JobOpportunity @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, jobId])
   @@map("job_applications")
+}
+
+model Guide {
+  id        String   @id @default(cuid())
+  category  String
+  title     String
+  content   String
+  steps     String?
+  order     Int      @default(0)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("guides")
+}
+
+model FAQ {
+  id        String   @id @default(cuid())
+  category  String
+  question  String
+  answer    String
+  order     Int      @default(0)
+  enabled   Boolean  @default(true)
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("faqs")
+}
+
+model ContactInfo {
+  id          String   @id @default(cuid())
+  type        String
+  title       String
+  content     String
+  description String?
+  qrCode      String?  // 二维码图片URL
+  order       Int      @default(0)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("contact_infos")
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  content   String
+  contact   String
+  rating    Int      @default(5)
+  status    String   @default("pending")
+  response  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("feedbacks")
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  avatar    String?
+  content   String
+  rating    Int      @default(5)
+  order     Int      @default(0)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonials")
 }

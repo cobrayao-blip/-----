@@ -212,7 +212,7 @@ const UserManagementNew: React.FC = () => {
   // 获取角色标签
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'SUPER_ADMIN': return '系统管理员'
+      case 'SUPER_ADMIN': return '超级管理员'
       case 'ADMIN': return '普通管理员'
       case 'VIP': return 'VIP用户'
       case 'USER': return '普通用户'
@@ -289,7 +289,7 @@ const UserManagementNew: React.FC = () => {
             <div className="font-medium flex items-center gap-2">
               {record.name}
               {record.role === 'SUPER_ADMIN' && (
-                <Tag color="purple" size="small">超级</Tag>
+                <Tag color="purple">超级</Tag>
               )}
             </div>
             <div className="text-sm text-gray-500">{record.email}</div>
@@ -602,7 +602,7 @@ const UserManagementNew: React.FC = () => {
                   刷新
                 </Button>
                 <Text type="secondary" className="text-sm">
-                  {isSystemAdmin ? '系统管理员视图' : '普通管理员视图'}
+                  {isSystemAdmin ? '超级管理员视图' : '普通管理员视图'}
                 </Text>
               </Space>
             </Col>

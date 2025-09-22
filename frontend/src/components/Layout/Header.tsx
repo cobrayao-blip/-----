@@ -25,12 +25,13 @@ const Header: React.FC = () => {
     { key: '/policies', label: <Link to="/policies">政策</Link> },
     { key: '/projects', label: <Link to="/projects">项目</Link> },
     { key: '/jobs', label: <Link to="/jobs">职位</Link> },
+    { key: '/contact', label: <Link to="/contact">联系我们</Link> },
   ]
 
   const userMenuItems = [
     {
       key: 'profile',
-      label: <Link to="/profile">个人资料</Link>,
+      label: <Link to="/profile">个人中心</Link>,
       icon: <UserOutlined />,
     },
     {

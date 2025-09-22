@@ -38,6 +38,18 @@ const ProjectDetail: React.FC = () => {
   const { data: projectResponse, isLoading, error } = useGetProjectByIdQuery(id!)
   const project = projectResponse?.data
 
+  // 项目分类翻译函数
+  const getCategoryLabel = (category: string) => {
+    const categoryMap: Record<string, string> = {
+      'TECH': '科技创新',
+      'STARTUP': '创业扶持',
+      'TALENT': '人才引进',
+      'RESEARCH': '科研项目',
+      'OTHER': '其他'
+    }
+    return categoryMap[category] || category
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -121,7 +133,7 @@ const ProjectDetail: React.FC = () => {
                       {project.title}
                     </Title>
                     <Tag color="blue" className="text-base px-3 py-1">
-                      {project.category}
+                      {getCategoryLabel(project.category)}
                     </Tag>
                     <Tag color={project.status === 'PUBLISHED' ? 'green' : 'orange'} className="text-base px-3 py-1">
                       {project.status === 'PUBLISHED' ? '正在申报' : '暂停申报'}
@@ -129,9 +141,19 @@ const ProjectDetail: React.FC = () => {
                   </Space>
                 </div>
 
-                <Paragraph className="text-lg text-gray-700 leading-relaxed">
-                  {project.description}
-                </Paragraph>
+                <div className="text-lg text-gray-700 leading-relaxed">
+                  <div 
+                    style={{ 
+                      whiteSpace: 'pre-wrap', 
+                      lineHeight: '1.8',
+                      fontSize: '16px',
+                      color: '#374151'
+                    }}
+                    className="project-description"
+                  >
+                    {project.description}
+                  </div>
+                </div>
 
                 {/* 项目关键信息 */}
                 <Row gutter={[16, 16]}>

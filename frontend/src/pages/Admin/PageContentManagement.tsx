@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   Card, 
   Typography, 
@@ -15,7 +15,8 @@ import {
   Switch,
   InputNumber,
   Popconfirm,
-  Rate
+  Rate,
+  Upload
 } from 'antd'
 import { 
   SearchOutlined,
@@ -26,7 +27,8 @@ import {
   QuestionCircleOutlined,
   BookOutlined,
   PhoneOutlined,
-  MessageOutlined
+  MessageOutlined,
+  LoadingOutlined
 } from '@ant-design/icons'
 
 const { Title } = Typography
@@ -59,10 +61,11 @@ interface FAQContent {
 
 interface ContactInfo {
   id: string
-  type: 'phone' | 'email' | 'address' | 'hours' | 'department'
+  type: 'phone' | 'email' | 'address' | 'hours' | 'department' | 'social' | 'location' | 'transport' | 'nearby'
   title: string
   content: string
   description?: string
+  qrCode?: string
   order: number
   enabled: boolean
   updatedAt: string
@@ -91,142 +94,91 @@ const PageContentManagement: React.FC = () => {
   const [modalType, setModalType] = useState<'create' | 'edit' | 'view'>('create')
   const [selectedItem, setSelectedItem] = useState<any>(null)
   
+  // 数据状态
+  const [guideContents, setGuideContents] = useState<GuideContent[]>([])
+  const [faqContents, setFaqContents] = useState<FAQContent[]>([])
+  const [contactInfos, setContactInfos] = useState<ContactInfo[]>([])
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([])
+  const [loading, setLoading] = useState(false)
+  
+  // 图片上传状态
+  const [contactImageLoading, setContactImageLoading] = useState(false)
+  const [contactImageUrl, setContactImageUrl] = useState<string>('')
+  
   const [form] = Form.useForm()
 
-  // 使用指南数据
-  const guideContents: GuideContent[] = [
-    {
-      id: '1',
-      category: 'register',
-      title: '新用户注册指南',
-      content: '详细的用户注册流程说明，包括注册步骤、注意事项等。',
-      steps: ['点击注册按钮', '填写基本信息', '验证手机号', '完成注册'],
-      order: 1,
-      enabled: true,
-      updatedAt: '2024-01-10 10:30:00'
-    },
-    {
-      id: '2',
-      category: 'park',
-      title: '园区服务使用指南',
-      content: '如何使用园区服务的详细说明，包括申请流程、审核标准等。',
-      steps: ['浏览园区信息', '选择合适园区', '提交申请', '等待审核'],
-      order: 2,
-      enabled: true,
-      updatedAt: '2024-01-10 10:30:00'
-    },
-    {
-      id: '3',
-      category: 'policy',
-      title: '政策咨询指南',
-      content: '政策查询和申请的详细流程说明。',
-      order: 3,
-      enabled: true,
-      updatedAt: '2024-01-10 10:30:00'
-    }
-  ]
+  useEffect(() => {
+    fetchData()
+  }, [activeTab])
 
-  // 常见问题数据
-  const faqContents: FAQContent[] = [
-    {
-      id: '1',
-      category: 'account',
-      question: '如何注册逍遥人才网账户？',
-      answer: '您可以点击页面右上角的"立即注册"按钮，填写手机号码获取验证码，设置密码后完善个人信息即可完成注册。注册过程简单快捷，通常只需要3-5分钟。',
-      order: 1,
-      enabled: true,
-      views: 1250,
-      updatedAt: '2024-01-10 10:30:00'
-    },
-    {
-      id: '2',
-      category: 'park',
-      question: '如何申请入驻园区？',
-      answer: '浏览园区列表，选择合适的园区后点击"申请入驻"，填写企业基本信息、业务范围、预期入驻时间等，上传相关资质文件后提交申请。园区方会在5个工作日内回复。',
-      order: 2,
-      enabled: true,
-      views: 890,
-      updatedAt: '2024-01-10 10:30:00'
-    },
-    {
-      id: '3',
-      category: 'policy',
-      question: '政策申请需要什么材料？',
-      answer: '不同政策需要的材料不同，一般包括：身份证明、学历证明、工作证明、企业营业执照、项目计划书等。具体材料清单请查看各政策的详细说明。',
-      order: 3,
-      enabled: true,
-      views: 650,
-      updatedAt: '2024-01-10 10:30:00'
-    }
-  ]
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
 
-  // 联系信息数据
-  const contactInfos: ContactInfo[] = [
-    {
-      id: '1',
-      type: 'phone',
-      title: '客服热线',
-      content: '400-888-8888',
-      description: '7×24小时服务热线',
-      order: 1,
-      enabled: true,
-      updatedAt: '2024-01-10 10:30:00'
-    },
-    {
-      id: '2',
-      type: 'email',
-      title: '邮箱地址',
-      content: 'contact@xiaoyao.com',
-      description: '商务合作与意见建议',
-      order: 2,
-      enabled: true,
-      updatedAt: '2024-01-10 10:30:00'
-    },
-    {
-      id: '3',
-      type: 'address',
-      title: '公司地址',
-      content: '北京市海淀区中关村科技园',
-      description: '欢迎预约实地参观',
-      order: 3,
-      enabled: true,
-      updatedAt: '2024-01-10 10:30:00'
+      switch (activeTab) {
+        case 'guide':
+          const guideResponse = await fetch('/api/content/guides', { headers })
+          const guideData = await guideResponse.json()
+          if (guideData.success) {
+            setGuideContents(guideData.data.map((item: any) => ({
+              ...item,
+              steps: item.steps ? JSON.parse(item.steps) : [],
+              updatedAt: new Date(item.updatedAt).toLocaleString()
+            })))
+          }
+          break
+        case 'faq':
+          const faqResponse = await fetch('/api/content/faqs', { headers })
+          const faqData = await faqResponse.json()
+          if (faqData.success) {
+            setFaqContents(faqData.data.map((item: any) => ({
+              ...item,
+              updatedAt: new Date(item.updatedAt).toLocaleString()
+            })))
+          }
+          break
+        case 'contact':
+          const contactResponse = await fetch('/api/content/contacts', { headers })
+          const contactData = await contactResponse.json()
+          if (contactData.success) {
+            setContactInfos(contactData.data.map((item: any) => ({
+              ...item,
+              updatedAt: new Date(item.updatedAt).toLocaleString()
+            })))
+          }
+          break
+        case 'feedback':
+          const feedbackResponse = await fetch('/api/content/feedbacks', { headers })
+          const feedbackData = await feedbackResponse.json()
+          if (feedbackData.success) {
+            setFeedbackItems(feedbackData.data.map((item: any) => ({
+              ...item,
+              createdAt: new Date(item.createdAt).toLocaleString(),
+              updatedAt: new Date(item.updatedAt).toLocaleString()
+            })))
+          }
+          break
+      }
+    } catch (error) {
+      message.error('获取数据失败')
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
-  // 意见反馈数据
-  const feedbackItems: FeedbackItem[] = [
-    {
-      id: '1',
-      type: 'suggestion',
-      title: '希望增加移动端APP',
-      content: '建议开发移动端应用，方便用户随时查看信息和提交申请。',
-      contact: '138****8888',
-      rating: 5,
-      status: 'processing',
-      response: '感谢建议，移动端APP正在开发中，预计3月上线。',
-      createdAt: '2024-01-15 14:30:00',
-      updatedAt: '2024-01-16 09:15:00'
-    },
-    {
-      id: '2',
-      type: 'bug',
-      title: '搜索功能偶尔无响应',
-      content: '在使用搜索功能时，偶尔会出现无响应的情况，需要刷新页面才能正常使用。',
-      contact: 'user@example.com',
-      rating: 3,
-      status: 'resolved',
-      response: '问题已定位并修复，感谢您的反馈。',
-      createdAt: '2024-01-12 16:45:00',
-      updatedAt: '2024-01-13 10:20:00'
-    }
-  ]
+
 
   // 处理函数
   const handleCreate = (type: string) => {
     setSelectedItem(null)
     setModalType('create')
     form.resetFields()
+    setContactImageUrl('')
     setIsModalVisible(true)
   }
 
@@ -234,6 +186,12 @@ const PageContentManagement: React.FC = () => {
     setSelectedItem(item)
     setModalType('edit')
     form.setFieldsValue(item)
+    // 如果是联系信息且有二维码，设置图片URL
+    if (activeTab === 'contact' && item.qrCode) {
+      setContactImageUrl(item.qrCode)
+    } else {
+      setContactImageUrl('')
+    }
     setIsModalVisible(true)
   }
 
@@ -243,12 +201,84 @@ const PageContentManagement: React.FC = () => {
     setIsModalVisible(true)
   }
 
-  const handleDelete = (id: string) => {
-    message.success('删除成功')
+  const handleDelete = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+      let endpoint = ''
+      switch (activeTab) {
+        case 'guide':
+          endpoint = `/api/content/guides/${id}`
+          break
+        case 'faq':
+          endpoint = `/api/content/faqs/${id}`
+          break
+        case 'contact':
+          endpoint = `/api/content/contacts/${id}`
+          break
+        case 'feedback':
+          endpoint = `/api/content/feedbacks/${id}`
+          break
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        message.success('删除成功')
+        fetchData()
+      } else {
+        message.error(data.message || '删除失败')
+      }
+    } catch (error) {
+      message.error('删除失败')
+    }
   }
 
-  const handleToggleEnabled = (id: string, enabled: boolean) => {
-    message.success(enabled ? '已启用' : '已禁用')
+  const handleToggleEnabled = async (id: string, enabled: boolean) => {
+    try {
+      const token = localStorage.getItem('token')
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+      let endpoint = ''
+      switch (activeTab) {
+        case 'guide':
+          endpoint = `/api/content/guides/${id}`
+          break
+        case 'faq':
+          endpoint = `/api/content/faqs/${id}`
+          break
+        case 'contact':
+          endpoint = `/api/content/contacts/${id}`
+          break
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ enabled })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        message.success(enabled ? '已启用' : '已禁用')
+        fetchData()
+      } else {
+        message.error(data.message || '操作失败')
+      }
+    } catch (error) {
+      message.error('操作失败')
+    }
   }
 
   const handleModalOk = async () => {
@@ -259,12 +289,44 @@ const PageContentManagement: React.FC = () => {
 
     try {
       const values = await form.validateFields()
-      if (modalType === 'create') {
-        message.success('创建成功')
-      } else {
-        message.success('更新成功')
+      const token = localStorage.getItem('token')
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-      setIsModalVisible(false)
+
+      let endpoint = ''
+      let method = modalType === 'create' ? 'POST' : 'PUT'
+      
+      switch (activeTab) {
+        case 'guide':
+          endpoint = modalType === 'create' ? '/api/content/guides' : `/api/content/guides/${selectedItem?.id}`
+          break
+        case 'faq':
+          endpoint = modalType === 'create' ? '/api/content/faqs' : `/api/content/faqs/${selectedItem?.id}`
+          break
+        case 'contact':
+          endpoint = modalType === 'create' ? '/api/content/contacts' : `/api/content/contacts/${selectedItem?.id}`
+          break
+        case 'feedback':
+          endpoint = modalType === 'create' ? '/api/content/feedbacks' : `/api/content/feedbacks/${selectedItem?.id}`
+          break
+      }
+
+      const response = await fetch(endpoint, {
+        method,
+        headers,
+        body: JSON.stringify(values)
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        message.success(modalType === 'create' ? '创建成功' : '更新成功')
+        setIsModalVisible(false)
+        fetchData()
+      } else {
+        message.error(data.message || '操作失败')
+      }
     } catch (error) {
       message.error('请完善必填信息')
     }
@@ -296,7 +358,11 @@ const PageContentManagement: React.FC = () => {
           { value: 'email', label: '邮箱' },
           { value: 'address', label: '地址' },
           { value: 'hours', label: '工作时间' },
-          { value: 'department', label: '部门联系' }
+          { value: 'department', label: '部门联系' },
+          { value: 'social', label: '社交媒体' },
+          { value: 'location', label: '位置信息' },
+          { value: 'transport', label: '交通指南' },
+          { value: 'nearby', label: '周边设施' }
         ]
       case 'feedback':
         return [
@@ -474,6 +540,14 @@ const PageContentManagement: React.FC = () => {
       key: 'description'
     },
     {
+      title: '二维码',
+      dataIndex: 'qrCode',
+      key: 'qrCode',
+      render: (qrCode: string) => (
+        qrCode ? <Tag color="blue">已设置</Tag> : <Tag color="default">未设置</Tag>
+      )
+    },
+    {
       title: '状态',
       dataIndex: 'enabled',
       key: 'enabled',
@@ -609,6 +683,7 @@ const PageContentManagement: React.FC = () => {
               columns={guideColumns}
               dataSource={guideContents}
               rowKey="id"
+              loading={loading}
               pagination={{ pageSize: 10 }}
             />
           </TabPane>
@@ -635,6 +710,7 @@ const PageContentManagement: React.FC = () => {
               columns={faqColumns}
               dataSource={faqContents}
               rowKey="id"
+              loading={loading}
               pagination={{ pageSize: 10 }}
             />
           </TabPane>
@@ -661,6 +737,7 @@ const PageContentManagement: React.FC = () => {
               columns={contactColumns}
               dataSource={contactInfos}
               rowKey="id"
+              loading={loading}
               pagination={{ pageSize: 10 }}
             />
           </TabPane>
@@ -678,6 +755,7 @@ const PageContentManagement: React.FC = () => {
               columns={feedbackColumns}
               dataSource={feedbackItems}
               rowKey="id"
+              loading={loading}
               pagination={{ pageSize: 10 }}
             />
           </TabPane>
@@ -809,6 +887,59 @@ const PageContentManagement: React.FC = () => {
                 </Form.Item>
                 <Form.Item name="description" label="描述">
                   <Input />
+                </Form.Item>
+                <Form.Item name="qrCode" label="二维码图片" help="适用于微信、QQ等社交媒体，上传二维码图片">
+                  <Upload
+                    name="image"
+                    listType="picture-card"
+                    className="avatar-uploader"
+                    showUploadList={false}
+                    action="/api/content/contacts/upload-image"
+                    headers={{
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }}
+                    beforeUpload={(file) => {
+                      const isImage = file.type.startsWith('image/');
+                      if (!isImage) {
+                        message.error('只能上传图片文件!');
+                      }
+                      const isLt2M = file.size / 1024 / 1024 < 2;
+                      if (!isLt2M) {
+                        message.error('图片大小不能超过 2MB!');
+                      }
+                      return isImage && isLt2M;
+                    }}
+                    onChange={(info) => {
+                      if (info.file.status === 'uploading') {
+                        setContactImageLoading(true);
+                        return;
+                      }
+                      if (info.file.status === 'done') {
+                        setContactImageLoading(false);
+                        if (info.file.response?.success) {
+                          const imageUrl = info.file.response.data.url;
+                          form.setFieldsValue({ qrCode: imageUrl });
+                          setContactImageUrl(imageUrl);
+                          message.success('图片上传成功');
+                        } else {
+                          message.error('图片上传失败');
+                        }
+                      }
+                      if (info.file.status === 'error') {
+                        setContactImageLoading(false);
+                        message.error('图片上传失败');
+                      }
+                    }}
+                  >
+                    {contactImageUrl ? (
+                      <img src={contactImageUrl} alt="二维码" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div>
+                        {contactImageLoading ? <LoadingOutlined /> : <PlusOutlined />}
+                        <div style={{ marginTop: 8 }}>上传二维码</div>
+                      </div>
+                    )}
+                  </Upload>
                 </Form.Item>
                 <Form.Item name="order" label="排序" rules={[{ required: true }]}>
                   <InputNumber min={1} />
